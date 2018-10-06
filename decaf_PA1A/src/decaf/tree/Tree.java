@@ -195,9 +195,14 @@ public abstract class Tree {
     public static final int INDEXED = TYPETEST + 1;
 
     /**
+     * Deducted variable expressions, of type DeductedVar.
+     */
+    public static final int DEDUCTEDVAR = INDEXED + 1;
+
+    /**
      * Selections, of type Select.
      */
-    public static final int SELECT = INDEXED + 1;
+    public static final int SELECT = DEDUCTEDVAR + 1;
 
     /**
      * Simple identifiers, of type Ident.
@@ -1200,6 +1205,31 @@ public abstract class Tree {
     	}
     }
 
+
+    /**
+     * A variable with automatic deducted type
+     */
+    public static class DeductedVar extends LValue {
+
+        public String name;
+
+        public DeductedVar(String name, Location loc) {
+            super(DEDUCTEDVAR, loc);
+            this.name = name;
+        }
+
+        @Override
+        public void accept(Visitor v) {
+            v.visitDeductedVar(this);
+        }
+
+        @Override
+        public void printTo(IndentPrintWriter pw) {
+            pw.println("var " + name);
+        }
+    }
+
+
     /**
       * A constant value given literally.
       * @param value value representation
@@ -1457,6 +1487,10 @@ public abstract class Tree {
         }
 
         public void visitIndexed(Indexed that) {
+            visitTree(that);
+        }
+
+        public void visitDeductedVar(DeductedVar that) {
             visitTree(that);
         }
 

@@ -155,6 +155,9 @@ public class SemValue {
 		case Parser.SEALED:
 			msg = "keyword  : sealed";
 			break;
+        case Parser.VAR:
+            msg = "keyword  : var";
+            break;
 		case Parser.NEW:
 			msg = "keyword  : new";
 			break;
