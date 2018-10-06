@@ -445,7 +445,7 @@ OCStmt          :   SCOPY '(' IDENTIFIER ',' Expr ')'
 	 */
     public boolean onReduce(String rule) {
 		if (rule.startsWith("$$"))
-			return false;
+			return true;
 		else
 			rule = rule.replaceAll(" \\$\\$\\d+", "");
 
@@ -453,7 +453,7 @@ OCStmt          :   SCOPY '(' IDENTIFIER ',' Expr ')'
     	    System.out.println(rule + " <empty>");
    	    else
 			System.out.println(rule);
-		return false;
+		return true;
     }
     
     public void diagnose() {
@@ -462,5 +462,5 @@ OCStmt          :   SCOPY '(' IDENTIFIER ',' Expr ')'
 	}
 
 	public Parser() {
-	    //addReduceListener(this);
+	    addReduceListener(this);
 	}
