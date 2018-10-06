@@ -100,9 +100,14 @@ public abstract class Tree {
     public static final int SYNCHRONIZED = LABELLED + 1;
 
     /**
+     * Object copy statements, of type ObjectCopy.
+     */
+    public static final int OBJECTCOPY = SYNCHRONIZED + 1;
+
+    /**
      * Try statements, of type Try.
      */
-    public static final int TRY = SYNCHRONIZED + 1;
+    public static final int TRY = OBJECTCOPY + 1;
 
     /**
      * Catch clauses in try statements, of type Catch.
@@ -697,6 +702,37 @@ public abstract class Tree {
     			pw.decIndent();
     		}
     	}
+    }
+
+    /**
+     * A object copy statement
+     */
+    public static class ObjectCopy extends Tree {
+        public String identifier;
+        public Expr expr;
+
+        public ObjectCopy(String identifier, Expr expr, Location loc) {
+            super(OBJECTCOPY, loc);
+            this.identifier = identifier;
+            this.expr = expr;
+        }
+
+        @Override
+        public void accept(Visitor v) {
+            v.visitObjectCopy(this);
+        }
+
+        @Override
+        public void printTo(IndentPrintWriter pw) {
+            pw.println("scopy");
+            pw.incIndent();
+            pw.println(identifier);
+            if (expr != null) {
+                expr.printTo(pw);
+            }
+            pw.decIndent();
+        }
+
     }
 
     public abstract static class Expr extends Tree {
@@ -1394,6 +1430,10 @@ public abstract class Tree {
         }
 
         public void visitPrint(Print that) {
+            visitTree(that);
+        }
+
+        public void visitObjectCopy(ObjectCopy that) {
             visitTree(that);
         }
 

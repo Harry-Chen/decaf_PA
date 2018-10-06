@@ -6,7 +6,7 @@
  * Keltin Leung
  * DCST, Tsinghua University
  */
- 
+
 %{
 package decaf.frontend;
 
@@ -21,7 +21,7 @@ import java.util.*;
 %Jsemantic SemValue
 %Jimplements ReduceListener
 %Jnorun
-%Jnodebug
+//%Jnodebug
 %Jnoconstruct
 
 %token VOID   BOOL  INT   STRING  CLASS 
@@ -30,6 +30,7 @@ import java.util.*;
 %token PRINT  READ_INTEGER         READ_LINE
 %token LITERAL
 %token IDENTIFIER	  AND    OR    STATIC  INSTANCEOF
+%token SCOPY
 %token LESS_EQUAL   GREATER_EQUAL  EQUAL   NOT_EQUAL
 %token '+'  '-'  '*'  '/'  '%'  '='  '>'  '<'  '.'
 %token ','  ';'  '!'  '('  ')'  '['  ']'  '{'  '}'
@@ -193,6 +194,7 @@ Stmt		    :	VariableDef
                 |	ForStmt
                 |	ReturnStmt ';'
                 |	PrintStmt ';'
+                |   OCStmt ';'
                 |	BreakStmt ';'
                 |	StmtBlock
                 ;
@@ -419,6 +421,12 @@ PrintStmt       :	PRINT '(' ExprList ')'
 					}
                 ;
 
+OCStmt          :   SCOPY '(' IDENTIFIER ',' Expr ')'
+                    {
+                        $$.stmt = new ObjectCopy($3.ident, $5.expr, $1.loc);
+                    }
+                ;
+
 %%
     
 	/**
@@ -441,4 +449,8 @@ PrintStmt       :	PRINT '(' ExprList ')'
     public void diagnose() {
 		addReduceListener(this);
 		yyparse();
+	}
+
+	public Parser() {
+	    //addReduceListener(this);
 	}
