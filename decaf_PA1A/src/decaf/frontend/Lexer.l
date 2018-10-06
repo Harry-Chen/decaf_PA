@@ -73,6 +73,7 @@ WHITESPACE			= ([ \t]+)
 "static"			{ return keyword(Parser.STATIC);		}
 "instanceof"		{ return keyword(Parser.INSTANCEOF);	}
 "scopy"		        { return keyword(Parser.SCOPY);        }
+"sealed"		    { return keyword(Parser.SEALED);       }
 
 	// 识别操作符的规则
 "<="				{ return operator(Parser.LESS_EQUAL);	}

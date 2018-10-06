@@ -348,15 +348,17 @@ public abstract class Tree {
     public static class ClassDef extends Tree {
     	
     	public String name;
+    	public boolean sealed;
     	public String parent;
     	public List<Tree> fields;
 
-        public ClassDef(String name, String parent, List<Tree> fields,
+        public ClassDef(String name, String parent, List<Tree> fields, boolean sealed,
     			Location loc) {
     		super(CLASSDEF, loc);
     		this.name = name;
     		this.parent = parent;
     		this.fields = fields;
+    		this.sealed = sealed;
         }
 
     	@Override
@@ -366,6 +368,7 @@ public abstract class Tree {
         
     	@Override
     	public void printTo(IndentPrintWriter pw) {
+            if (sealed) pw.print("sealed ");
     		pw.println("class " + name + " "
     				+ (parent != null ? parent : "<empty>"));
     		pw.incIndent();

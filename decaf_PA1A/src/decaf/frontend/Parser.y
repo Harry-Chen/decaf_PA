@@ -30,7 +30,7 @@ import java.util.*;
 %token PRINT  READ_INTEGER         READ_LINE
 %token LITERAL
 %token IDENTIFIER	  AND    OR    STATIC  INSTANCEOF
-%token SCOPY
+%token SCOPY SEALED
 %token LESS_EQUAL   GREATER_EQUAL  EQUAL   NOT_EQUAL
 %token '+'  '-'  '*'  '/'  '%'  '='  '>'  '<'  '.'
 %token ','  ';'  '!'  '('  ')'  '['  ']'  '{'  '}'
@@ -101,10 +101,20 @@ Type            :	INT
                 	}
                 ;
 
-ClassDef        :	CLASS IDENTIFIER ExtendsClause '{' FieldList '}'
+ClassDef        :	ClassSealed CLASS IDENTIFIER ExtendsClause '{' FieldList '}'
 					{
-						$$.cdef = new Tree.ClassDef($2.ident, $3.ident, $5.flist, $1.loc);
+						$$.cdef = new Tree.ClassDef($3.ident, $4.ident, $6.flist, (Boolean)$1.literal, $2.loc);
 					}
+                ;
+
+ClassSealed     :   SEALED
+                    {
+                        $$.literal = true;
+                    }
+                |   /* empty */
+                    {
+                        $$.literal = false;
+                    }
                 ;
 
 ExtendsClause	:	EXTENDS IDENTIFIER
