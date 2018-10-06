@@ -445,7 +445,6 @@ IfBranchClause  :   IfBranchList IfSubStmt
 					{
 						$$ = new SemValue();
 						$$.slist = new ArrayList<Tree>();
-						System.out.println($$.slist.size());
 					}
                 ;
 

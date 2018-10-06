@@ -769,6 +769,12 @@ public abstract class Tree {
 
 
         @Override
+        public void accept(Visitor v) {
+            v.visitGuardedIf(this);
+        }
+
+
+        @Override
         public void printTo(IndentPrintWriter pw) {
             pw.println("guarded");
             pw.incIndent();
@@ -795,6 +801,10 @@ public abstract class Tree {
             this.stmt = stmt;
         }
 
+        @Override
+        public void accept(Visitor v) {
+            v.visitGuardedSub(this);
+        }
 
         @Override
         public void printTo(IndentPrintWriter pw) {
@@ -1583,6 +1593,14 @@ public abstract class Tree {
 
         public void visitTree(Tree that) {
             assert false;
+        }
+
+        public void visitGuardedIf(GuardedIf that) {
+            visitTree(that);
+        }
+
+        public void visitGuardedSub(GuardedSub that) {
+            visitTree(that);
         }
     }
 }
