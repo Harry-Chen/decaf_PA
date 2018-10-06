@@ -30,7 +30,7 @@ import java.util.*;
 %token PRINT  READ_INTEGER         READ_LINE
 %token LITERAL
 %token IDENTIFIER	  AND    OR    STATIC  INSTANCEOF
-%token SCOPY SEALED VAR
+%token SCOPY SEALED VAR GUARD_SEPARATOR
 %token LESS_EQUAL   GREATER_EQUAL  EQUAL   NOT_EQUAL
 %token '+'  '-'  '*'  '/'  '%'  '='  '>'  '<'  '.'
 %token ','  ';'  '!'  '('  ')'  '['  ']'  '{'  '}'
@@ -202,6 +202,7 @@ Stmt		    :	VariableDef
                 |	IfStmt
                 |	WhileStmt
                 |	ForStmt
+                |   GuardedStmt
                 |	ReturnStmt ';'
                 |	PrintStmt ';'
                 |   OCStmt ';'
@@ -429,15 +430,58 @@ ReturnStmt      :	RETURN Expr
                 	}
                 ;
 
+GuardedStmt     :   IF '{' IfBranchClause '}'
+                    {
+                        $$.stmt = new Tree.GuardedIf($3.slist, $1.loc);
+                    }
+                ;
+
+IfBranchClause  :   IfBranchList IfSubStmt
+                    {
+                        $$.slist = $1.slist;
+                        $$.slist.add($2.stmt);
+                    }
+				|	/* empty */
+					{
+						$$ = new SemValue();
+						$$.slist = new ArrayList<Tree>();
+						System.out.println($$.slist.size());
+					}
+                ;
+
+IfBranchList    :   IfBranchList IfBranch
+                    {
+                        $$.slist.add($2.stmt);
+                    }
+				|	/* empty */
+					{
+						$$ = new SemValue();
+						$$.slist = new ArrayList<Tree>();
+					}
+                ;
+
+IfBranch        :   IfSubStmt GUARD_SEPARATOR
+                    {
+                        $$.stmt = $1.stmt;
+                    }
+                ;
+
+
+IfSubStmt       :   Expr ':' Stmt
+                    {
+                        $$.stmt = new Tree.GuardedSub($1.expr, $3.stmt, $2.loc);
+                    }
+                ;
+
 PrintStmt       :	PRINT '(' ExprList ')'
 					{
-						$$.stmt = new Print($3.elist, $1.loc);
+						$$.stmt = new Tree.Print($3.elist, $1.loc);
 					}
                 ;
 
 OCStmt          :   SCOPY '(' IDENTIFIER ',' Expr ')'
                     {
-                        $$.stmt = new ObjectCopy($3.ident, $5.expr, $1.loc);
+                        $$.stmt = new Tree.ObjectCopy($3.ident, $5.expr, $1.loc);
                     }
                 ;
 
@@ -449,15 +493,15 @@ OCStmt          :   SCOPY '(' IDENTIFIER ',' Expr ')'
 	 */
     public boolean onReduce(String rule) {
 		if (rule.startsWith("$$"))
-			return true;
+			return false;
 		else
 			rule = rule.replaceAll(" \\$\\$\\d+", "");
 
    	    if (rule.endsWith(":"))
-    	    System.err.println(rule + " <empty>");
+    	    System.out.println(rule + " <empty>");
    	    else
-			System.err.println(rule);
-		return true;
+			System.out.println(rule);
+		return false;
     }
     
     public void diagnose() {
@@ -466,6 +510,19 @@ OCStmt          :   SCOPY '(' IDENTIFIER ',' Expr ')'
 	}
 
 	public Parser() {
-	    // yydebug = true;
-	    addReduceListener(this);
+	    // for debug purpose
+	    if (true) {
+            // yydebug = true;
+            addReduceListener((rule) -> {
+                if (rule.startsWith("$$"))
+                    return true;
+                else
+                    rule = rule.replaceAll(" \\$\\$\\d+", "");
+                if (rule.endsWith(":"))
+                    System.err.println(rule + " <empty>");
+                else
+                    System.err.println(rule);
+                return true;
+            });
+	    }
 	}

@@ -6,6 +6,7 @@
  */
 package decaf.tree;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import decaf.*;
@@ -297,8 +298,18 @@ public abstract class Tree {
     public static final int VOID = 0; 
     public static final int INT = VOID + 1; 
     public static final int BOOL = INT + 1; 
-    public static final int STRING = BOOL + 1; 
+    public static final int STRING = BOOL + 1;
 
+
+    /**
+     * Guarded-if statement, of Type GuardedIf
+     */
+    public static final int GUARDEDIFSTMT = STRING + 1;
+
+    /**
+     * Sub-statement in guarded-if, of type GuardedSub
+     */
+    public static final int GUARDEDSUBSTMT = GUARDEDIFSTMT + 1;
 
     public Location loc;
     public int tag;
@@ -741,6 +752,58 @@ public abstract class Tree {
             pw.decIndent();
         }
 
+    }
+
+
+    public static class GuardedIf extends Tree {
+
+        public List<Tree.GuardedSub> guards;
+
+        public GuardedIf(List<Tree> guards, Location loc) {
+            super(GUARDEDIFSTMT, loc);
+            this.guards = new ArrayList<Tree.GuardedSub>();
+            for (Tree guard : guards) {
+                this.guards.add((Tree.GuardedSub)guard);
+            }
+        }
+
+
+        @Override
+        public void printTo(IndentPrintWriter pw) {
+            pw.println("guarded");
+            pw.incIndent();
+            if (guards.isEmpty()) {
+                pw.println("<empty>");
+            } else {
+                for (Tree.GuardedSub guards : guards) {
+                    guards.printTo(pw);
+                }
+            }
+            pw.decIndent();
+        }
+    }
+
+
+    public static class GuardedSub extends Tree {
+
+        public Expr expr;
+        public Tree stmt;
+
+        public GuardedSub(Expr expr, Tree stmt, Location loc) {
+            super(GUARDEDSUBSTMT, loc);
+            this.expr = expr;
+            this.stmt = stmt;
+        }
+
+
+        @Override
+        public void printTo(IndentPrintWriter pw) {
+            pw.println("guard");
+            pw.incIndent();
+            expr.printTo(pw);
+            stmt.printTo(pw);
+            pw.decIndent();
+        }
     }
 
     public abstract static class Expr extends Tree {
