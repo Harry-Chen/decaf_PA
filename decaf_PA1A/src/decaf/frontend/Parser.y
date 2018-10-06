@@ -450,9 +450,9 @@ OCStmt          :   SCOPY '(' IDENTIFIER ',' Expr ')'
 			rule = rule.replaceAll(" \\$\\$\\d+", "");
 
    	    if (rule.endsWith(":"))
-    	    System.out.println(rule + " <empty>");
+    	    System.err.println(rule + " <empty>");
    	    else
-			System.out.println(rule);
+			System.err.println(rule);
 		return true;
     }
     
