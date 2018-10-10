@@ -83,6 +83,8 @@ WHITESPACE			= ([ \t]+)
 "!="				{ return operator(Parser.NOT_EQUAL);	}
 "&&"				{ return operator(Parser.AND);			}
 "||"				{ return operator(Parser.OR);			}
+"%%"				{ return operator(Parser.ARRAY_REPEAT);	}
+"++"				{ return operator(Parser.ARRAY_CONCAT);	}
 "|||"               { return operator(Parser.GUARD_SEPARATOR);}
 {SIMPLE_OPERATOR}	{ return operator((int)yycharat(0));	}
 
