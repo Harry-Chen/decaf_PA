@@ -465,7 +465,7 @@ GuardedStmt     :   IF '{' IfBranchClause '}'
                     }
                 ;
 
-IfBranchClause  :   IfBranchList IfSubStmt
+IfBranchClause  :   IfBranchList GuardedSubStmt
                     {
                         $$.slist = $1.slist;
                         $$.slist.add($2.stmt);
@@ -477,7 +477,7 @@ IfBranchClause  :   IfBranchList IfSubStmt
 					}
                 ;
 
-IfBranchList    :   IfBranchList IfBranch
+IfBranchList    :   IfBranchList GuardedSubStmt GUARD_SEPARATOR
                     {
                         $$.slist.add($2.stmt);
                     }
@@ -488,14 +488,7 @@ IfBranchList    :   IfBranchList IfBranch
 					}
                 ;
 
-IfBranch        :   IfSubStmt GUARD_SEPARATOR
-                    {
-                        $$.stmt = $1.stmt;
-                    }
-                ;
-
-
-IfSubStmt       :   Expr ':' Stmt
+GuardedSubStmt  :   Expr ':' Stmt
                     {
                         $$.stmt = new Tree.GuardedSub($1.expr, $3.stmt, $2.loc);
                     }
