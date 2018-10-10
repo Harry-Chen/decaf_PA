@@ -409,6 +409,7 @@ IfCondition     :   IF Expr
                     }
                 |	/* empty */
                     {
+                        $$ = new SemValue();
                         $$.expr = new Tree.Literal(Tree.BOOL, true, $$.loc);
                     }
                 ;
@@ -556,8 +557,9 @@ WhileCondition  :   WHILE Expr
                     {
                         $$.expr = $2.expr;
                     }
-                |	/* empty */
+                |   /* empty */
                     {
+                        $$ = new SemValue();
                         $$.expr = new Tree.Literal(Tree.BOOL, true, $$.loc);
                     }
                 ;
