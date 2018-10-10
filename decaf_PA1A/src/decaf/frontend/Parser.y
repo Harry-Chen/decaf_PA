@@ -31,7 +31,7 @@ import java.util.*;
 %token LITERAL
 %token IDENTIFIER	  AND    OR    STATIC  INSTANCEOF
 %token SCOPY SEALED VAR GUARD_SEPARATOR ARRAY_REPEAT
-%token DEFAULT
+%token DEFAULT IN
 %token LESS_EQUAL   GREATER_EQUAL  EQUAL   NOT_EQUAL
 %token '+'  '-'  '*'  '/'  '%'  '='  '>'  '<'  '.'
 %token ','  ';'  '!'  '('  ')'  '['  ']'  '{'  '}'
@@ -396,10 +396,48 @@ ArrayExpr       :   Expr '[' Expr ':' Expr ']'
                     {
                         $$.expr = new Tree.ArrayElement($1.expr, $3.expr, $6.expr, $1.loc);
                     }
+                |   '[' ArrayGenerating ']'
+                    {
+                        $$.expr = $2.expr;
+                    }
+                ;
+
+ArrayGenerating :   ConstantList Constant
+                    {
+                        $1.elist.add($2.expr);
+                        $$.expr = new Tree.ArrayConstant($1.elist, $2.loc);
+                    }
+                |   Expr FOR IDENTIFIER IN Expr IfCondition
+                    {
+                        $$.expr = new Tree.ArrayComp($4.ident, $6.expr, $7.expr, $2.expr, $6.loc);
+                    }
+                |   /* empty */
+                    {
+                        $$.expr = new Tree.ArrayConstant(null, $2.loc);
+                    }
+                ;
+
+IfCondition     :   IF Expr
+                    {
+                        $$.expr = $2.expr;
+                    }
+                |	/* empty */
+                    {
+                        $$.expr = new Tree.Literal(Tree.BOOL, true, $$.loc);
+                    }
+                ;
+
+WhileCondition  :   WHILE Expr
+                    {
+                        $$.expr = $2.expr;
+                    }
+                |	/* empty */
+                    {
+                        $$.expr = new Tree.Literal(Tree.BOOL, true, $$.loc);
+                    }
                 ;
 	
-Constant        :	ArrayConst
-                |   LITERAL
+Constant        :	LITERAL
 					{
 						$$.expr = new Tree.Literal($1.typeTag, $1.literal, $1.loc);
 					}
@@ -407,23 +445,6 @@ Constant        :	ArrayConst
                 	{
 						$$.expr = new Null($1.loc);
 					}
-                ;
-
-ArrayConst      :   '[' ConstantListClause ']'
-                    {
-                        $$.expr = new Tree.ArrayConstant($2.elist, $2.loc);
-                    }
-
-ConstantListClause: ConstantList Constant
-                    {
-                        $$.elist = $1.elist;
-                        $$.elist.add($2.expr);
-                    }
-                |	/* empty */
-                    {
-                        $$ = new SemValue();
-                        $$.elist = new ArrayList<Tree.Expr>();
-                    }
                 ;
 
 ConstantList    :   ConstantList Constant ','
@@ -574,7 +595,7 @@ OCStmt          :   SCOPY '(' IDENTIFIER ',' Expr ')'
 	public Parser() {
 	    // for debug purpose
 	    if (true) {
-            // yydebug = true;
+            //yydebug = true;
             addReduceListener((rule) -> {
                 if (rule.startsWith("$$"))
                     return true;

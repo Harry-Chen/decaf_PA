@@ -211,9 +211,14 @@ public abstract class Tree {
     public static final int ARRAYELEMENT = ARRAYRANGE + 1;
 
     /**
+     * Array comprehension expressions, of type ArrayComp
+     */
+    public static final int ARRAYCOMP = ARRAYELEMENT + 1;
+
+    /**
      * Deducted variable expressions, of type DeductedVar.
      */
-    public static final int DEDUCTEDVAR = ARRAYELEMENT + 1;
+    public static final int DEDUCTEDVAR = ARRAYCOMP + 1;
 
     /**
      * Selections, of type Select.
@@ -852,7 +857,7 @@ public abstract class Tree {
         public void printTo(IndentPrintWriter pw) {
             pw.println("array const");
             pw.incIndent();
-            if (constants.isEmpty()) {
+            if (constants == null || constants.isEmpty()) {
                 pw.println("<empty>");
             } else {
                 for (Expr constant : constants) {
@@ -1347,6 +1352,40 @@ public abstract class Tree {
     }
 
     /**
+     * Array comprehension expression
+     */
+    public static class ArrayComp extends Expr {
+        public String varName;
+        public Expr source;
+        public Expr condition;
+        public Expr result;
+
+        public ArrayComp(String varName, Expr source, Expr condition, Expr result, Location loc) {
+            super(ARRAYCOMP, loc);
+            this.varName = varName;
+            this.source = source;
+            this.condition = condition;
+            this.result = result;
+        }
+
+        @Override
+        public void accept(Visitor v) {
+            v.visitArrayComp(this);
+        }
+
+        @Override
+        public void printTo(IndentPrintWriter pw) {
+            pw.println("array comp");
+            pw.incIndent();
+            pw.println("varbind " + varName);
+            source.printTo(pw);
+            condition.printTo(pw);
+            result.printTo(pw);
+            pw.decIndent();
+        }
+    }
+
+    /**
       * An array selection
       */
     public static class Indexed extends LValue {
@@ -1740,6 +1779,10 @@ public abstract class Tree {
         }
 
         public void visitArrayElement(ArrayElement that) {
+            visitTree(that);
+        }
+
+        public void visitArrayComp(ArrayComp that) {
             visitTree(that);
         }
     }
