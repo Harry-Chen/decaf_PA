@@ -251,9 +251,14 @@ public abstract class Tree {
     public static final int TYPEARRAY = TYPECLASS + 1;
 
     /**
+     * Deducted types, of type TypeDeducted.
+     */
+    public static final int TYPEDEDUCTED = TYPEARRAY + 1;
+
+    /**
      * Parameterized types, of type TypeApply.
      */
-    public static final int TYPEAPPLY = TYPEARRAY + 1;
+    public static final int TYPEAPPLY = TYPEDEDUCTED + 1;
 
     /**
      * Formal type parameters, of type TypeParameter.
@@ -332,6 +337,11 @@ public abstract class Tree {
      * Sub-statement in guarded-if, of type GuardedSub
      */
     public static final int GUARDEDSUBSTMT = GUARDEDIFSTMT + 1;
+
+    /**
+     * For-each statement, of type Foreach
+     */
+    public static final int FOREACH = GUARDEDSUBSTMT + 1;
 
     public Location loc;
     public int tag;
@@ -463,11 +473,19 @@ public abstract class Tree {
     	
     	public String name;
     	public TypeLiteral type;
+    	public boolean isBinding = false;
 
         public VarDef(String name, TypeLiteral type, Location loc) {
             super(VARDEF, loc);
     		this.name = name;
     		this.type = type;
+        }
+
+        public VarDef(String name, TypeLiteral type, Location loc, boolean bind) {
+            super(VARDEF, loc);
+            this.name = name;
+            this.type = type;
+            this.isBinding = bind;
         }
 
     	@Override
@@ -477,7 +495,11 @@ public abstract class Tree {
 
     	@Override
     	public void printTo(IndentPrintWriter pw) {
-    		pw.print("vardef " + name + " ");
+            if (isBinding) {
+                pw.print("varbind " + name + " ");
+            } else {
+                pw.print("vardef " + name + " ");
+            }
     		type.printTo(pw);
     		pw.println();
     	}
@@ -774,6 +796,37 @@ public abstract class Tree {
             pw.decIndent();
         }
 
+    }
+
+    public static class Foreach extends Tree {
+        public VarDef varBind;
+        public Expr source;
+        public Expr condition;
+        public Tree stmt;
+
+        public Foreach(VarDef varBind, Expr source, Expr condition, Tree stmt, Location loc) {
+            super(FOREACH, loc);
+            this.varBind = varBind;
+            this.source = source;
+            this.condition = condition;
+            this.stmt = stmt;
+        }
+
+        @Override
+        public void accept(Visitor v) {
+            v.visitForeach(this);
+        }
+
+        @Override
+        public void printTo(IndentPrintWriter pw) {
+            pw.println("foreach");
+            pw.incIndent();
+            varBind.printTo(pw);
+            source.printTo(pw);
+            condition.printTo(pw);
+            stmt.printTo(pw);
+            pw.decIndent();
+        }
     }
 
 
@@ -1565,6 +1618,23 @@ public abstract class Tree {
     	}
     }
 
+    public static class TypeDeducted extends TypeLiteral {
+
+        public TypeDeducted(Location loc) {
+            super(TYPEDEDUCTED, loc);
+        }
+
+        @Override
+        public void accept(Visitor v) {
+            v.visitTypeDeducted(this);
+        }
+
+        @Override
+        public void printTo(IndentPrintWriter pw) {
+            pw.print("var");
+        }
+    }
+
     public static class TypeClass extends TypeLiteral {
 
     	public String name;
@@ -1647,6 +1717,10 @@ public abstract class Tree {
         }
 
         public void visitForLoop(ForLoop that) {
+            visitTree(that);
+        }
+
+        public void visitForeach(Foreach that) {
             visitTree(that);
         }
 
@@ -1755,6 +1829,10 @@ public abstract class Tree {
         }
 
         public void visitTypeArray(TypeArray that) {
+            visitTree(that);
+        }
+
+        public void visitTypeDeducted(TypeDeducted that) {
             visitTree(that);
         }
 
