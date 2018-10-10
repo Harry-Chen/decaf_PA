@@ -311,6 +311,11 @@ public abstract class Tree {
      */
     public static final int GUARDEDSUBSTMT = GUARDEDIFSTMT + 1;
 
+    /**
+     * Array of constants, of type ArrayConstant
+     */
+    public static final int ARRAYCONSTANT = GUARDEDSUBSTMT + 1;
+
     public Location loc;
     public int tag;
 
@@ -815,6 +820,39 @@ public abstract class Tree {
             pw.decIndent();
         }
     }
+
+
+    public static class ArrayConstant extends Expr {
+
+        public List<Expr> constants;
+
+        public ArrayConstant(List<Expr> constants, Location loc) {
+            super(ARRAYCONSTANT, loc);
+            this.constants = constants;
+        }
+
+        @Override
+        public void accept(Visitor v) {
+            v.visitArrayConstant(this);
+        }
+
+        @Override
+        public void printTo(IndentPrintWriter pw) {
+            pw.println("array const");
+            pw.incIndent();
+            if (constants.isEmpty()) {
+                pw.println("<empty>");
+            } else {
+                for (Expr constant : constants) {
+                    constant.printTo(pw);
+                }
+            }
+            pw.decIndent();
+        }
+
+
+    }
+
 
     public abstract static class Expr extends Tree {
 
@@ -1600,6 +1638,10 @@ public abstract class Tree {
         }
 
         public void visitGuardedSub(GuardedSub that) {
+            visitTree(that);
+        }
+
+        public void visitArrayConstant(ArrayConstant that) {
             visitTree(that);
         }
     }

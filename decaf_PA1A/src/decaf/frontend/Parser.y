@@ -357,7 +357,8 @@ Expr            :	LValue
                 	} 
                 ;
 	
-Constant        :	LITERAL
+Constant        :	ArrayConst
+                |   LITERAL
 					{
 						$$.expr = new Tree.Literal($1.typeTag, $1.literal, $1.loc);
 					}
@@ -365,6 +366,34 @@ Constant        :	LITERAL
                 	{
 						$$.expr = new Null($1.loc);
 					}
+                ;
+
+ArrayConst      :   '[' ConstantListClause ']'
+                    {
+                        $$.expr = new Tree.ArrayConstant($2.elist, $2.loc);
+                    }
+
+ConstantListClause: ConstantList Constant
+                    {
+                        $$.elist = $1.elist;
+                        $$.elist.add($2.expr);
+                    }
+                |	/* empty */
+                    {
+                        $$ = new SemValue();
+                        $$.elist = new ArrayList<Tree.Expr>();
+                    }
+                ;
+
+ConstantList    :   ConstantList Constant ','
+                    {
+                        $$.elist.add($2.expr);
+                    }
+                |	/* empty */
+                    {
+                        $$ = new SemValue();
+                        $$.elist = new ArrayList<Tree.Expr>();
+                    }
                 ;
 
 Actuals         :	ExprList
