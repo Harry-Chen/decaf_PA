@@ -261,13 +261,42 @@ Call            :	Receiver IDENTIFIER '(' Actuals ')'
 					}
                 ;
 
+This            :   THIS
+                	{
+                		$$.expr = new Tree.ThisExpr($1.loc);
+                	}
+                ;
+
 Expr            :	LValue
 					{
 						$$.expr = $1.lvalue;
 					}
+                |	'(' Expr ')'
+                	{
+                		$$ = $2;
+                	}
+                |	This
                 |	Call
                 |	Constant
-                |	Expr '+' Expr
+                |   BinaryExpr
+                |   UnaryExpr
+                |	ReadExpr
+                |	NewExpr
+                |	TypeExpr
+                |   ArrayExpr
+                ;
+
+UnaryExpr       :	'-' Expr  				%prec UMINUS
+                	{
+                		$$.expr = new Tree.Unary(Tree.NEG, $2.expr, $1.loc);
+                	}
+                |	'!' Expr
+                	{
+                		$$.expr = new Tree.Unary(Tree.NOT, $2.expr, $1.loc);
+                	}
+                ;
+
+BinaryExpr      :   Expr '+' Expr
                 	{
                 		$$.expr = new Tree.Binary(Tree.PLUS, $1.expr, $3.expr, $2.loc);
                 	}
@@ -327,19 +356,9 @@ Expr            :	LValue
                     {
                         $$.expr = new Tree.Binary(Tree.ARRAYCONCAT, $1.expr, $3.expr, $2.loc);
                     }
-                |	'(' Expr ')'
-                	{
-                		$$ = $2;
-                	}
-                |	'-' Expr  				%prec UMINUS
-                	{
-                		$$.expr = new Tree.Unary(Tree.NEG, $2.expr, $1.loc);
-                	}
-                |	'!' Expr
-                	{
-                		$$.expr = new Tree.Unary(Tree.NOT, $2.expr, $1.loc);
-                	}
-                |	READ_INTEGER '(' ')'
+                ;
+
+ReadExpr        :   READ_INTEGER '(' ')'
                 	{
                 		$$.expr = new Tree.ReadIntExpr($1.loc);
                 	}
@@ -347,11 +366,9 @@ Expr            :	LValue
                 	{
                 		$$.expr = new Tree.ReadLineExpr($1.loc);
                 	}
-                |	THIS
-                	{
-                		$$.expr = new Tree.ThisExpr($1.loc);
-                	}
-                |	NEW IDENTIFIER '(' ')'
+                ;
+
+NewExpr         :   NEW IDENTIFIER '(' ')'
                 	{
                 		$$.expr = new Tree.NewClass($2.ident, $1.loc);
                 	}
@@ -359,7 +376,9 @@ Expr            :	LValue
                 	{
                 		$$.expr = new Tree.NewArray($2.type, $4.expr, $1.loc);
                 	}
-                |	INSTANCEOF '(' Expr ',' IDENTIFIER ')'
+                ;
+
+TypeExpr        :   INSTANCEOF '(' Expr ',' IDENTIFIER ')'
                 	{
                 		$$.expr = new Tree.TypeTest($3.expr, $5.ident, $1.loc);
                 	}
@@ -367,11 +386,13 @@ Expr            :	LValue
                 	{
                 		$$.expr = new Tree.TypeCast($3.ident, $5.expr, $5.loc);
                 	}
-                |   Expr '[' Expr ':' Expr ']'
+                ;
+
+ArrayExpr       :   Expr '[' Expr ':' Expr ']'
                     {
                         $$.expr = new Tree.ArrayRange($1.expr, $3.expr, $5.expr, $1.loc);
                     }
-                |   Expr '[' Expr ']' DEFAULT Expr %prec ARRAY_ELEMENT_DEFAULT
+                |   Expr '[' Expr ']' DEFAULT Expr                 %prec ARRAY_ELEMENT_DEFAULT
                     {
                         $$.expr = new Tree.ArrayElement($1.expr, $3.expr, $6.expr, $1.loc);
                     }
