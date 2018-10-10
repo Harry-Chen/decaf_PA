@@ -31,6 +31,7 @@ import java.util.*;
 %token LITERAL
 %token IDENTIFIER	  AND    OR    STATIC  INSTANCEOF
 %token SCOPY SEALED VAR GUARD_SEPARATOR ARRAY_REPEAT
+%token DEFAULT
 %token LESS_EQUAL   GREATER_EQUAL  EQUAL   NOT_EQUAL
 %token '+'  '-'  '*'  '/'  '%'  '='  '>'  '<'  '.'
 %token ','  ';'  '!'  '('  ')'  '['  ']'  '{'  '}'
@@ -42,7 +43,8 @@ import java.util.*;
 %right ARRAY_CONCAT
 %left  ARRAY_REPEAT
 %left  '+' '-'
-%left  '*' '/' '%'  
+%left  '*' '/' '%'
+%nonassoc ARRAY_ELEMENT_DEFAULT
 %nonassoc UMINUS '!' 
 %nonassoc '[' '.' 
 %nonassoc ')' EMPTY
@@ -364,7 +366,15 @@ Expr            :	LValue
                 |	'(' CLASS IDENTIFIER ')' Expr
                 	{
                 		$$.expr = new Tree.TypeCast($3.ident, $5.expr, $5.loc);
-                	} 
+                	}
+                |   Expr '[' Expr ':' Expr ']'
+                    {
+                        $$.expr = new Tree.ArrayRange($1.expr, $3.expr, $5.expr, $1.loc);
+                    }
+                |   Expr '[' Expr ']' DEFAULT Expr %prec ARRAY_ELEMENT_DEFAULT
+                    {
+                        $$.expr = new Tree.ArrayElement($1.expr, $3.expr, $6.expr, $1.loc);
+                    }
                 ;
 	
 Constant        :	ArrayConst

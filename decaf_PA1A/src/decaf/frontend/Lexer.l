@@ -72,8 +72,9 @@ WHITESPACE			= ([ \t]+)
 "ReadLine"			{ return keyword(Parser.READ_LINE);		}
 "static"			{ return keyword(Parser.STATIC);		}
 "instanceof"		{ return keyword(Parser.INSTANCEOF);	}
-"scopy"		        { return keyword(Parser.SCOPY);        }
-"sealed"		    { return keyword(Parser.SEALED);       }
+"scopy"		        { return keyword(Parser.SCOPY);         }
+"sealed"		    { return keyword(Parser.SEALED);        }
+"default"		    { return keyword(Parser.DEFAULT);       }
 "var"				{ return keyword(Parser.VAR);			}
 
 	// 识别操作符的规则
