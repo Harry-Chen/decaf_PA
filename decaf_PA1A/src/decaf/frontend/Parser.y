@@ -428,7 +428,7 @@ Constant        :	ArrayConstant
 
 ArrayConstant   :   '[' ConstantList ']'
                     {
-                        $$.expr = new Tree.ArrayConstant($1.elist, $2.loc);
+                        $$.expr = new Tree.ArrayConstant($2.elist, $2.loc);
                     }
                 |   '[' ']'
                     {
@@ -602,7 +602,7 @@ OCStmt          :   SCOPY '(' IDENTIFIER ',' Expr ')'
 
 	public Parser() {
 	    // for debug purpose
-	    if (true) {
+	    if (false) {
             //yydebug = true;
             addReduceListener((rule) -> {
                 if (rule.startsWith("$$"))
