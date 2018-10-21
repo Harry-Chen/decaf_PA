@@ -101,7 +101,7 @@ ArrayType       :   '[' ']' ArrayType
 
 ClassDef        :   CLASS IDENTIFIER ExtendsClause '{' FieldList '}'
                     {
-                        $$.cdef = new Tree.ClassDef($2.ident, $3.ident, $5.flist, $1.loc);
+                        $$.cdef = new Tree.ClassDef($2.ident, $3.ident, $5.flist, false, $1.loc);
                     }
                 ;
 
