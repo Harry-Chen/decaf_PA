@@ -191,6 +191,25 @@ public class SemValue {
             case Parser.STATIC:
                 msg = "keyword : static";
                 break;
+            case Parser.SEALED:
+                msg = "keyword : sealed";
+                break;
+            case Parser.SCOPY:
+                msg = "keyword : scopy";
+                break;
+            case Parser.IN:
+                msg = "keyword : in";
+                break;
+            case Parser.VAR:
+                msg = "keyword : var";
+                break;
+            case Parser.FOREACH:
+                msg = "keyword : foreach";
+                break;
+            case Parser.DEFAULT:
+                msg = "keyword : default";
+                break;
+
 
             // 常量
             case Parser.LITERAL:
@@ -227,6 +246,15 @@ public class SemValue {
                 break;
             case Parser.OR:
                 msg = "operator : ||";
+                break;
+            case Parser.ARRAY_CONCAT:
+                msg = "operator : ++";
+                break;
+            case Parser.ARRAY_REPEAT:
+                msg = "operator : %%";
+                break;
+            case Parser.GUARD_SEPARATOR:
+                msg = "operator : |||";
                 break;
             default:
                 msg = "operator : " + (char) code;
