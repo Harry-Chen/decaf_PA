@@ -702,6 +702,38 @@ Constant        :   LITERAL
                     {
                         $$.expr = new Null($1.loc);
                     }
+                |   '[' ArrayConstant
+                    {
+                        $$.expr = $2.expr;
+                    }
+                ;
+
+ArrayConstant   :   ConstantList ']'
+                    {
+                        $$.expr = new Tree.ArrayConstant($1.elist, $$.loc);
+                    }
+                |   ']'
+                    {
+                        $$.expr = new Tree.ArrayConstant(new ArrayList<Tree.Expr>(), $$.loc);
+                    }
+                ;
+
+ConstantList    :   Constant ConstantListR
+                    {
+                        $$.elist = $2.elist;
+                        $$.elist.add(0, $1.expr);
+                    }
+                ;
+
+ConstantListR   :   ',' Constant ConstantListR
+                    {
+                        $$.elist = $3.elist;
+                        $$.elist.add(0, $2.expr);
+                    }
+                |   /* empty */
+                    {
+                        $$.elist = new ArrayList<Tree.Expr>();
+                    }
                 ;
 
 Actuals         :   ExprList
