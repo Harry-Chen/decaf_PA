@@ -19,6 +19,7 @@ IDENTIFIER   AND      OR    STATIC  INSTANCEOF
 LESS_EQUAL   GREATER_EQUAL  EQUAL   NOT_EQUAL
 '+'  '-'  '*'  '/'  '%'  '='  '>'  '<'  '.'
 ','  ';'  '!'  '('  ')'  '['  ']'  '{'  '}'
+':'
 SEALED SCOPY IN VAR FOREACH DEFAULT
 ARRAY_REPEAT ARRAY_CONCAT GUARD_SEPARATOR
 
@@ -219,9 +220,9 @@ Stmt            :   VariableDef
                             $$.stmt = $1.stmt;
                         }
                     }
-                |   IfStmt
+                |   IF IfSubStmt
                     {
-                        $$.stmt = $1.stmt;
+                        $$.stmt = $2.stmt;
                     }
                 |   WhileStmt
                     {
@@ -748,9 +749,18 @@ BreakStmt       :   BREAK
                     }
                 ;
 
-IfStmt          :   IF '(' Expr ')' Stmt ElseClause
+IfSubStmt       :   IfStmt
                     {
-                        $$.stmt = new Tree.If($3.expr, $5.stmt, $6.stmt, $1.loc);
+                        $$.stmt = $1.stmt;
+                    }
+                |   GuardedStmt
+                    {
+                        $$.stmt = $1.stmt;
+                    }
+
+IfStmt          :   '(' Expr ')' Stmt ElseClause
+                    {
+                        $$.stmt = new Tree.If($2.expr, $4.stmt, $5.stmt, $$.loc);
                     }
                 ;
 
@@ -783,5 +793,45 @@ PrintStmt       :   PRINT '(' ExprList ')'
 OCStmt          :   SCOPY '(' IDENTIFIER ',' Expr ')'
                     {
                         $$.stmt = new Tree.ObjectCopy($3.ident, $5.expr, $1.loc);
+                    }
+                ;
+
+GuardedStmt     :   '{' GuardedStmtR
+                    {
+                        $$.stmt = $2.stmt;
+                    }
+                ;
+
+GuardedStmtR    :   IfBranchList '}'
+                    {
+                        $$.stmt = new Tree.GuardedIf($1.slist, $$.loc);
+                    }
+                |  '}'
+                    {
+                        $$.stmt = new Tree.GuardedIf(new ArrayList<Tree>(), $$.loc);
+                    }
+                ;
+
+IfBranchList    :   GuardedSubStmt IfBranchListR
+                    {
+                        $$.slist = $2.slist;
+                        $$.slist.add(0, $1.stmt);
+                    }
+                ;
+
+IfBranchListR   :   GUARD_SEPARATOR GuardedSubStmt IfBranchListR
+                    {
+                        $$.slist = $3.slist;
+                        $$.slist.add(0, $2.stmt);
+                    }
+                |   /* empty */
+                    {
+                        $$.slist = new ArrayList<Tree>();
+                    }
+                ;
+
+GuardedSubStmt  :   Expr ':' Stmt
+                    {
+                        $$.stmt = new Tree.GuardedSub($1.expr, $3.stmt, $2.loc);
                     }
                 ;
