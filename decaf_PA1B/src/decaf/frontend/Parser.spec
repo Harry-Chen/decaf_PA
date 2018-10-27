@@ -99,9 +99,19 @@ ArrayType       :   '[' ']' ArrayType
                     }
                 ;
 
-ClassDef        :   CLASS IDENTIFIER ExtendsClause '{' FieldList '}'
+ClassDef        :   ClassSealed CLASS IDENTIFIER ExtendsClause '{' FieldList '}'
                     {
-                        $$.cdef = new Tree.ClassDef($2.ident, $3.ident, $5.flist, false, $1.loc);
+						$$.cdef = new Tree.ClassDef($3.ident, $4.ident, $6.flist, (Boolean)$1.literal, $2.loc);
+                    }
+                ;
+
+ClassSealed     :   SEALED
+                    {
+                        $$.literal = true;
+                    }
+                |   /* empty */
+                    {
+                        $$.literal = false;
                     }
                 ;
 
@@ -233,6 +243,10 @@ Stmt            :   VariableDef
                     {
                         $$.stmt = $1.stmt;
                     }
+                |   OCStmt ';'
+                    {
+                        $$.stmt = $1.stmt;
+                    }
                 |   StmtBlock
                     {
                         $$.stmt = $1.stmt;
@@ -246,6 +260,10 @@ SimpleStmt      :   Expr Assignment
                         } else {
                             $$.stmt = new Tree.Assign($1.expr, $2.expr, $2.loc);
                         }
+                    }
+                |   VAR IDENTIFIER '=' Expr
+                    {
+                        $$.stmt = new Tree.Assign(new Tree.DeductedVar($2.ident, $2.loc), $4.expr, $2.loc);
                     }
                 |   /* empty */
                 ;
@@ -759,5 +777,11 @@ ReturnExpr      :   Expr
 PrintStmt       :   PRINT '(' ExprList ')'
                     {
                         $$.stmt = new Tree.Print($3.elist, $1.loc);
+                    }
+                ;
+
+OCStmt          :   SCOPY '(' IDENTIFIER ',' Expr ')'
+                    {
+                        $$.stmt = new Tree.ObjectCopy($3.ident, $5.expr, $1.loc);
                     }
                 ;
