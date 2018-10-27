@@ -6,7 +6,6 @@ import decaf.tree.Tree;
 
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 public class Parser extends Table {
@@ -22,6 +21,15 @@ public class Parser extends Table {
      */
     public void setLexer(Lexer lexer) {
         this.lexer = lexer;
+    }
+
+    /**
+     * Set debug mode.
+     *
+     * @param debug turn on debug mode
+     */
+    public void setDebug(boolean debug) {
+        this.debug = debug;
     }
 
     /**
@@ -53,7 +61,30 @@ public class Parser extends Table {
      * Error handler.
      */
     private void error() {
+        syntaxError = true;
         issueError("syntax error");
+    }
+
+    /**
+     * Indicates whether syntax error has occurred.
+     * If so, skip all user defined action to avoid NullPointerException
+     */
+    private boolean syntaxError = false;
+
+    /**
+     * Whether to print debug message
+     */
+    private boolean debug;
+
+    /**
+     * Print debug message if debug mode is on.
+     *
+     * @param s message to print
+     */
+    private void d(String s) {
+        if (debug) {
+            System.err.println(s);
+        }
     }
 
     /**
@@ -68,20 +99,47 @@ public class Parser extends Table {
         } catch (Exception e) {
             issueError("lexer error: " + e.getMessage());
         }
+        d(String.format("Lexer get: %s\n", name(token)));
         return token;
     }
 
     /**
      * Parse function for each non-terminal with error recovery.
      * NOTE: the current implementation is buggy and may throw NullPointerException.
-     * TODO: find a correct implementation for error recovery!
-     * TODO: You are free to change the method body as you wish, but not the interface!
      *
      * @param symbol the non-terminal to be passed.
      * @return the parsed value of `symbol` if parsing succeeded, otherwise `null`.
      */
     private SemValue parse(int symbol, Set<Integer> follow) {
-        Map.Entry<Integer, List<Integer>> result = query(symbol, lookahead); // get production by lookahead symbol
+
+        d(String.format("\nNow symbol %s, lookahead %s", name(symbol), name(lookahead)));
+
+        // obtain the Begin and End set of current non-terminate symbol
+        var begin = beginSet(symbol);
+        var end = new HashSet<>(followSet(symbol));
+        end.addAll(follow);
+
+        d(String.format("Current begin set: %s", symbolSet(begin)));
+        d(String.format("Current end set: %s", symbolSet(end)));
+
+        if (!begin.contains(lookahead)) {
+            d(String.format("Token %s not in Begin set, returning error", name(lookahead)));
+            error();
+            while (true) {
+                if (begin.contains(lookahead)) {
+                    d(String.format("Token %s in Begin set, let's continue", name(lookahead)));
+                    break;
+                } else if (end.contains(lookahead)) {
+                    d(String.format("Token %s in End set, returning null", name(lookahead)));
+                    return null;
+                }
+                d(String.format("Skipping token %s", name(lookahead)));
+                lookahead = lex();
+            }
+        }
+
+        var result = query(symbol, lookahead); // get production by lookahead symbol
+
         int actionId = result.getKey(); // get user-defined action
 
         List<Integer> right = result.getValue(); // right-hand side of production
@@ -90,14 +148,23 @@ public class Parser extends Table {
 
         for (int i = 0; i < length; i++) { // parse right-hand side symbols one by one
             int term = right.get(i);
-            params[i + 1] = isNonTerminal(term)
-                    ? parse(term, follow) // for non terminals: recursively parse it
-                    : matchToken(term) // for terminals: match token
-                    ;
+            if (isNonTerminal(term)) {
+                d(String.format("Parsing non-terminal %s with follow set %s", name(term), symbolSet(end)));
+                params[i + 1] = parse(term, end);
+            } else {
+                d(String.format("Matching token %s", name(term)));
+                params[i + 1] = matchToken(term);
+            }
+//            params[i + 1] = isNonTerminal(term)
+//                    ? parse(term, follow) // for non terminals: recursively parse it
+//                    : matchToken(term) // for terminals: match token
+//                    ;
         }
 
         params[0] = new SemValue(); // initialize return value
-        act(actionId, params); // do user-defined action
+        if (!syntaxError) {
+            act(actionId, params); // do user-defined action only if no syntax error has occurred
+        }
         return params[0];
     }
 
@@ -134,8 +201,9 @@ public class Parser extends Table {
      * Pretty print a symbol set.
      *
      * @param set symbol set.
+     * @return formatted string for symbol set
      */
-    private void printSymbolSet(Set<Integer> set) {
+    private String symbolSet(Set<Integer> set) {
         StringBuilder buf = new StringBuilder();
         buf.append("{ ");
         for (Integer i : set) {
@@ -143,7 +211,7 @@ public class Parser extends Table {
             buf.append(" ");
         }
         buf.append("}");
-        System.out.print(buf.toString());
+        return buf.toString();
     }
 
     /**
@@ -151,15 +219,16 @@ public class Parser extends Table {
      * Pretty print a symbol list.
      *
      * @param list symbol list.
+     * @return formatted string for symbol list
      */
-    private void printSymbolList(List<Integer> list) {
+    private String symbolList(List<Integer> list) {
         StringBuilder buf = new StringBuilder();
         buf.append(" ");
         for (Integer i : list) {
             buf.append(name(i));
             buf.append(" ");
         }
-        System.out.print(buf.toString());
+        return buf.toString();
     }
 
     /**

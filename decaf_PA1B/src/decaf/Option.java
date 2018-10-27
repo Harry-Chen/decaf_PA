@@ -25,6 +25,8 @@ public final class Option {
 
 	private Level level = Level.LEVEL4;
 
+	private boolean debug = false;
+
 	private static final String mainClassName = "Main";
 
 	private static final String mainFuncName = "main";
@@ -54,6 +56,8 @@ public final class Option {
 				}
 			} else if (args[i].equals("-l")) {
 				level = Level.valueOf("LEVEL" + args[++i]);
+			} else if (args[i].equals("-d")) {
+				debug = true;
 			} else {
 				srcFileName = args[i];
 				try {
@@ -69,7 +73,7 @@ public final class Option {
 
 	private String usage() {
 		return ("\n"
-				+ "Usage:  java -jar decaf.jar [-l LEVEL] [-o OUTPUT] SOURCE\n"
+				+ "Usage:  java -jar decaf.jar [-l LEVEL] [-o OUTPUT] [-d] SOURCE\n"
 				+ "Options:\n"
 				+ "    -l  Developing level of the compiler, values of LEVEL are:  \n"
 				+ "        0  AST Construction                                     \n"
@@ -79,6 +83,8 @@ public final class Option {
 				+ "        4  Final Ouput (Mips Assembly, default)                 \n"
 				+ "                                                                \n"
 				+ "    -o  Specifying the output file name. stdout if omitted.     \n"
+				+ "                                                                \n"
+				+ "    -d  Enable debugging output                                 \n"
 				+ "                                                                \n"
 				+ "\n");
 	}
@@ -105,5 +111,9 @@ public final class Option {
 
 	public PrintStream getErr() {
 		return err;
+	}
+
+	public boolean getDebug() {
+		return debug;
 	}
 }

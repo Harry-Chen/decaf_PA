@@ -43,12 +43,8 @@ public final class Driver {
         parser = new Parser();
         lexer.setParser(parser);
         parser.setLexer(lexer);
-        errors = new TreeSet<>(new Comparator<DecafError>() {
-            @Override
-            public int compare(DecafError e1, DecafError e2) {
-                return e1.getLocation().compareTo(e2.getLocation());
-            }
-        });
+        parser.setDebug(option.getDebug());
+        errors = new TreeSet<>(Comparator.comparing(DecafError::getLocation));
 //		parser.diagnose();
     }
 
