@@ -248,6 +248,10 @@ Stmt            :   VariableDef
                     {
                         $$.stmt = $1.stmt;
                     }
+                |   ForeachStmt
+                    {
+                        $$.stmt = $1.stmt;
+                    }
                 |   StmtBlock
                     {
                         $$.stmt = $1.stmt;
@@ -833,5 +837,31 @@ IfBranchListR   :   GUARD_SEPARATOR GuardedSubStmt IfBranchListR
 GuardedSubStmt  :   Expr ':' Stmt
                     {
                         $$.stmt = new Tree.GuardedSub($1.expr, $3.stmt, $2.loc);
+                    }
+                ;
+
+ForeachStmt     :   FOREACH '(' BoundVariable IN Expr WhileCondition ')' Stmt
+                    {
+                        $$.stmt = new Tree.Foreach($3.vdef, $5.expr, $6.expr, $8.stmt, $1.loc);
+                    }
+                ;
+
+BoundVariable   :   VAR IDENTIFIER
+                    {
+                        $$.vdef = new Tree.VarDef($2.ident, new Tree.TypeDeducted($1.loc), $2.loc, true);
+                    }
+                |   Type IDENTIFIER
+                    {
+                        $$.vdef = new Tree.VarDef($2.ident, $1.type, $2.loc, true);
+                    }
+                ;
+
+WhileCondition  :   WHILE Expr
+                    {
+                        $$.expr = $2.expr;
+                    }
+                |   /* empty */
+                    {
+                        $$.expr = new Tree.Literal(Tree.BOOL, true, $$.loc);
                     }
                 ;

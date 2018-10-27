@@ -461,11 +461,19 @@ public abstract class Tree {
 
         public String name;
         public TypeLiteral type;
+        public boolean isBinding = false;
 
         public VarDef(String name, TypeLiteral type, Location loc) {
             super(VARDEF, loc);
             this.name = name;
             this.type = type;
+        }
+
+        public VarDef(String name, TypeLiteral type, Location loc, boolean bind) {
+            super(VARDEF, loc);
+            this.name = name;
+            this.type = type;
+            this.isBinding = bind;
         }
 
         @Override
@@ -475,7 +483,11 @@ public abstract class Tree {
 
         @Override
         public void printTo(IndentPrintWriter pw) {
-            pw.print("vardef " + name + " ");
+            if (isBinding) {
+                pw.print("varbind " + name + " ");
+            } else {
+                pw.print("vardef " + name + " ");
+            }
             type.printTo(pw);
             pw.println();
         }
