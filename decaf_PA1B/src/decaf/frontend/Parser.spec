@@ -19,7 +19,7 @@ IDENTIFIER   AND      OR    STATIC  INSTANCEOF
 LESS_EQUAL   GREATER_EQUAL  EQUAL   NOT_EQUAL
 '+'  '-'  '*'  '/'  '%'  '='  '>'  '<'  '.'
 ','  ';'  '!'  '('  ')'  '['  ']'  '{'  '}'
-':'
+':' COMP_BEGIN COMP_END
 SEALED SCOPY IN VAR FOREACH DEFAULT
 ARRAY_REPEAT ARRAY_CONCAT GUARD_SEPARATOR
 
