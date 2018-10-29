@@ -1161,6 +1161,12 @@ public abstract class Tree {
                 case GE:
                     binaryOperatorPrintTo(pw, "geq");
                     break;
+                case ARRAYREPEAT:
+                    binaryOperatorPrintTo(pw, "array repeat");
+                    break;
+                case ARRAYCONCAT:
+                    binaryOperatorPrintTo(pw, "array concat");
+                    break;
             }
         }
     }

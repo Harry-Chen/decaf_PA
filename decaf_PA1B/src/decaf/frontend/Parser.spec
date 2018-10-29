@@ -330,6 +330,20 @@ Oper4           :   LESS_EQUAL
                     }
                 ;
 
+OperArrayConcat :   ARRAY_CONCAT
+                    {
+                        $$.counter = Tree.ARRAYCONCAT;
+                        $$.loc = $1.loc;
+                    }
+                ;
+
+OperArrayRepeat :   ARRAY_REPEAT
+                    {
+                        $$.counter = Tree.ARRAYREPEAT;
+                        $$.loc = $1.loc;
+                    }
+                ;
+
 Oper5           :   '+'
                     {
                         $$.counter = Tree.PLUS;
@@ -465,7 +479,7 @@ ExprT3          :   Oper3 Expr4 ExprT3
                 |   /* empty */
                 ;
 
-Expr4           :   Expr5 ExprT4
+Expr4           :   ExprArrayConcat ExprT4
                     {
                         $$.expr = $1.expr;
                         if ($2.svec != null) {
@@ -477,7 +491,57 @@ Expr4           :   Expr5 ExprT4
                     }
                 ;
 
-ExprT4          :   Oper4 Expr5 ExprT4
+ExprT4          :   Oper4 ExprArrayConcat ExprT4
+                    {
+                        $$.svec = new Vector<Integer>();
+                        $$.lvec = new Vector<Location>();
+                        $$.evec = new Vector<Expr>();
+                        $$.svec.add($1.counter);
+                        $$.lvec.add($1.loc);
+                        $$.evec.add($2.expr);
+                        if ($3.svec != null) {
+                            $$.svec.addAll($3.svec);
+                            $$.lvec.addAll($3.lvec);
+                            $$.evec.addAll($3.evec);
+                        }
+                    }
+                |   /* empty */
+                ;
+
+ExprArrayConcat :   ExprArrayRepeat ExprTArrayConcat
+                    {
+                        if ($2.expr == null) {
+                            $$.expr = $1.expr;
+                        } else {
+                            $$.expr = new Tree.Binary(Tree.ARRAYCONCAT, $1.expr, $2.expr, $2.loc);
+                        }
+                    }
+                ;
+
+ExprTArrayConcat:   OperArrayConcat ExprArrayConcat
+                    {
+                        $$.loc = $1.loc;
+                        $$.expr = $2.expr;
+                    }
+                |   /* empty */
+                    {
+                        $$.expr = null;
+                    }
+                ;
+
+ExprArrayRepeat :   Expr5 ExprTArrayRepeat
+                    {
+                        $$.expr = $1.expr;
+                        if ($2.svec != null) {
+                            for (int i = 0; i < $2.svec.size(); ++i) {
+                                $$.expr = new Tree.Binary($2.svec.get(i), $$.expr,
+                                    $2.evec.get(i), $2.lvec.get(i));
+                            }
+                        }
+                    }
+                ;
+
+ExprTArrayRepeat:   OperArrayRepeat Expr5 ExprTArrayRepeat
                     {
                         $$.svec = new Vector<Integer>();
                         $$.lvec = new Vector<Location>();
