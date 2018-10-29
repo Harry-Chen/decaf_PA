@@ -697,7 +697,7 @@ ExprAfterBracket:   ']' ExprIsDefault
                     }
                 ;
 
-ExprIsDefault   :   DEFAULT Expr8
+ExprIsDefault   :   DEFAULT Expr7
                     {
                         SemValue sem = new SemValue();
                         sem.expr1 = $2.expr;
@@ -724,6 +724,10 @@ AfterIdentExpr  :   '(' Actuals ')'
                 ;
 
 Expr9           :   Constant
+                    {
+                        $$.expr = $1.expr;
+                    }
+                |   ArrayCompExpr
                     {
                         $$.expr = $1.expr;
                     }
@@ -811,17 +815,17 @@ Constant        :   LITERAL
                     {
                         $$.expr = new Null($1.loc);
                     }
-                |   '[' ArrayConstant
+                |   '[' ArrayConstant ']'
                     {
                         $$.expr = $2.expr;
                     }
                 ;
 
-ArrayConstant   :   ConstantList ']'
+ArrayConstant   :   ConstantList
                     {
                         $$.expr = new Tree.ArrayConstant($1.elist, $$.loc);
                     }
-                |   ']'
+                |   /* empty */
                     {
                         $$.expr = new Tree.ArrayConstant(new ArrayList<Tree.Expr>(), $$.loc);
                     }
@@ -842,6 +846,22 @@ ConstantListR   :   ',' Constant ConstantListR
                 |   /* empty */
                     {
                         $$.elist = new ArrayList<Tree.Expr>();
+                    }
+                ;
+
+ArrayCompExpr   :   COMP_BEGIN Expr FOR IDENTIFIER IN Expr IfCondition COMP_END
+                    {
+                        $$.expr = new Tree.ArrayComp($4.ident, $6.expr, $7.expr, $2.expr, $1.loc);
+                    }
+                ;
+
+IfCondition     :   IF Expr
+                    {
+                        $$.expr = $2.expr;
+                    }
+                |	/* empty */
+                    {
+                        $$.expr = new Tree.Literal(Tree.BOOL, true, $$.loc);
                     }
                 ;
 
