@@ -71,6 +71,8 @@ public class SemValue {
 
     public Vector<SemValue> vec;
 
+    public boolean isDefault;
+
     /**
      * 创建一个关键字的语义值
      *

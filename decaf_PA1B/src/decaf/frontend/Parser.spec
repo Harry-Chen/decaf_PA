@@ -632,7 +632,13 @@ Expr8           :   Expr9 ExprT8
                         $$.loc = $1.loc;
                         if ($2.vec != null) {
                             for (SemValue v : $2.vec) {
-                                if (v.expr != null) {
+                                if (v.expr1 != null) {
+                                    if (v.isDefault) {
+                                        $$.expr = new Tree.ArrayElement($$.expr, v.expr, v.expr1, $$.loc);
+                                    } else {
+                                        $$.expr = new Tree.ArrayRange($$.expr, v.expr, v.expr1, $$.loc);
+                                    }
+                                } else if (v.expr != null) {
                                     $$.expr = new Tree.Indexed($$.expr, v.expr, $$.loc);
                                 } else if (v.elist != null) {
                                     $$.expr = new Tree.CallExpr($$.expr, v.ident, v.elist, v.loc);
@@ -646,14 +652,18 @@ Expr8           :   Expr9 ExprT8
                     }
                 ;
 
-ExprT8          :   '[' Expr ']' ExprT8
+ExprT8          :   '[' Expr ExprAfterBracket
                     {
-                        SemValue sem = new SemValue();
-                        sem.expr = $2.expr;
-                        $$.vec = new Vector<SemValue>();
-                        $$.vec.add(sem);
-                        if ($4.vec != null) {
-                            $$.vec.addAll($4.vec);
+                        $$.vec= $3.vec;
+                        if ($$.vec != null) {
+                            var sem = $$.vec.get(0);
+                            sem.expr = $2.expr;
+                            $$.vec.set(0, sem);
+                        } else {
+                            $$.vec = new Vector<SemValue>();
+                            SemValue sem = new SemValue();
+                            sem.expr = $2.expr;
+                            $$.vec.add(sem);
                         }
                     }
                 |   '.' IDENTIFIER AfterIdentExpr ExprT8
@@ -669,6 +679,41 @@ ExprT8          :   '[' Expr ']' ExprT8
                         }
                     }
                 |   /* empty */
+                ;
+
+ExprAfterBracket:   ']' ExprIsDefault
+                    {
+                        $$.vec = $2.vec;
+                    }
+                |   ':' Expr ']' ExprT8
+                    {
+                        SemValue sem = new SemValue();
+                        sem.expr1 = $2.expr;
+                        $$.vec = new Vector<SemValue>();
+                        $$.vec.add(sem);
+                        if ($4.vec != null) {
+                            $$.vec.addAll($4.vec);
+                        }
+                    }
+                ;
+
+ExprIsDefault   :   DEFAULT Expr8
+                    {
+                        SemValue sem = new SemValue();
+                        sem.expr1 = $2.expr;
+                        sem.isDefault = true;
+                        $$.vec = new Vector<SemValue>();
+                        $$.vec.add(sem);
+                    }
+                |   ExprT8
+                    {
+                        SemValue sem = new SemValue();
+                        $$.vec = new Vector<SemValue>();
+                        $$.vec.add(sem);
+                        if ($1.vec != null) {
+                            $$.vec.addAll($1.vec);
+                        }
+                    }
                 ;
 
 AfterIdentExpr  :   '(' Actuals ')'
