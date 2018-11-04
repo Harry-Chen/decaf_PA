@@ -697,13 +697,16 @@ ExprAfterBracket:   ']' ExprIsDefault
                     }
                 ;
 
-ExprIsDefault   :   DEFAULT Expr7
+ExprIsDefault   :   DEFAULT Expr9 ExprT8
                     {
                         SemValue sem = new SemValue();
                         sem.expr1 = $2.expr;
                         sem.isDefault = true;
                         $$.vec = new Vector<SemValue>();
                         $$.vec.add(sem);
+                        if ($3.vec != null) {
+                            $$.vec.addAll($3.vec);
+                        }
                     }
                 |   ExprT8
                     {
