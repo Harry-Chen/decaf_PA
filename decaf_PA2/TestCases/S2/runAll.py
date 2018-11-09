@@ -5,6 +5,7 @@
 """
 此脚本自动测试当前目录下所有 *.decaf 程序，输出到 output 目录下，
 并与 result 目录下的标准答案比较。
+
 请注意我们在判分时会有更多的测试用例。
 """
 
@@ -21,6 +22,12 @@ def read_txt_file(filename):
 
 def main():
     decaf_jar = os.path.join('..', '..', 'result', 'decaf.jar')
+    # in case output dir not exists
+    try:
+        if not os.path.isdir('output'):
+            os.makedirs('output')
+    except:
+        os.makedirs('output', exist_ok=True)
     names = sys.argv[1:]
     if not names:
         names = sorted(os.listdir('.'))
