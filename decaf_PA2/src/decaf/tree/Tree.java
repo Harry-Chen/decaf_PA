@@ -6,6 +6,7 @@
  */
 package decaf.tree;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import decaf.*;
@@ -104,9 +105,14 @@ public abstract class Tree {
     public static final int SYNCHRONIZED = LABELLED + 1;
 
     /**
+     * Object copy statements, of type ObjectCopy.
+     */
+    public static final int OBJECTCOPY = SYNCHRONIZED + 1;
+
+    /**
      * Try statements, of type Try.
      */
-    public static final int TRY = SYNCHRONIZED + 1;
+    public static final int TRY = OBJECTCOPY + 1;
 
     /**
      * Catch clauses in try statements, of type Catch.
@@ -194,9 +200,34 @@ public abstract class Tree {
     public static final int INDEXED = TYPETEST + 1;
 
     /**
+     * Array of constants, of type ArrayConstant
+     */
+    public static final int ARRAYCONSTANT = INDEXED + 1;
+
+    /**
+     * Array range access expressions, of type ArrayRange
+     */
+    public static final int ARRAYRANGE = ARRAYCONSTANT + 1;
+
+    /**
+     * Array access with default value, of type ArrayElement
+     */
+    public static final int ARRAYELEMENT = ARRAYRANGE + 1;
+
+    /**
+     * Array comprehension expressions, of type ArrayComp
+     */
+    public static final int ARRAYCOMP = ARRAYELEMENT + 1;
+
+    /**
+     * Deducted variable expressions, of type DeductedVar.
+     */
+    public static final int DEDUCTEDVAR = ARRAYCOMP + 1;
+
+    /**
      * Selections, of type Select.
      */
-    public static final int SELECT = INDEXED + 1;
+    public static final int SELECT = DEDUCTEDVAR + 1;
 
     /**
      * Simple identifiers, of type Ident.
@@ -224,9 +255,14 @@ public abstract class Tree {
     public static final int TYPEARRAY = TYPECLASS + 1;
 
     /**
+     * Deducted types, of type TypeDeducted.
+     */
+    public static final int TYPEDEDUCTED = TYPEARRAY + 1;
+
+    /**
      * Parameterized types, of type TypeApply.
      */
-    public static final int TYPEAPPLY = TYPEARRAY + 1;
+    public static final int TYPEAPPLY = TYPEDEDUCTED + 1;
 
     /**
      * Formal type parameters, of type TypeParameter.
@@ -277,8 +313,10 @@ public abstract class Tree {
     public static final int MUL = MINUS + 1;
     public static final int DIV = MUL + 1;
     public static final int MOD = DIV + 1;
+    public static final int ARRAYREPEAT = MOD + 1;
+    public static final int ARRAYCONCAT = ARRAYREPEAT + 1;
 
-    public static final int NULL = MOD + 1;
+    public static final int NULL = ARRAYREPEAT + 1;
     public static final int CALLEXPR = NULL + 1;
     public static final int THISEXPR = CALLEXPR + 1;
     public static final int READINTEXPR = THISEXPR + 1;
@@ -291,7 +329,23 @@ public abstract class Tree {
     public static final int VOID = 0; 
     public static final int INT = VOID + 1; 
     public static final int BOOL = INT + 1; 
-    public static final int STRING = BOOL + 1; 
+    public static final int STRING = BOOL + 1;
+
+
+    /**
+     * Guarded-if statement, of Type GuardedIf
+     */
+    public static final int GUARDEDIFSTMT = STRING + 1;
+
+    /**
+     * Sub-statement in guarded-if, of type GuardedSub
+     */
+    public static final int GUARDEDSUBSTMT = GUARDEDIFSTMT + 1;
+
+    /**
+     * For-each statement, of type Foreach
+     */
+    public static final int FOREACH = GUARDEDSUBSTMT + 1;
 
 
     public Location loc;
@@ -360,14 +414,16 @@ public abstract class Tree {
     	public String name;
     	public String parent;
     	public List<Tree> fields;
+		public boolean sealed;
     	public Class symbol;
 
-        public ClassDef(String name, String parent, List<Tree> fields,
+        public ClassDef(String name, String parent, List<Tree> fields, boolean sealed,
     			Location loc) {
     		super(CLASSDEF, loc);
     		this.name = name;
     		this.parent = parent;
     		this.fields = fields;
+    		this.sealed = sealed;
         }
 
     	@Override
@@ -377,6 +433,7 @@ public abstract class Tree {
         
     	@Override
     	public void printTo(IndentPrintWriter pw) {
+            if (sealed) pw.print("sealed ");
     		pw.println("class " + name + " "
     				+ (parent != null ? parent : "<empty>"));
     		pw.incIndent();
@@ -434,12 +491,20 @@ public abstract class Tree {
     	
     	public String name;
     	public TypeLiteral type;
+		public boolean isBinding = false;
     	public Variable symbol;
 
         public VarDef(String name, TypeLiteral type, Location loc) {
             super(VARDEF, loc);
     		this.name = name;
     		this.type = type;
+        }
+		
+        public VarDef(String name, TypeLiteral type, Location loc, boolean bind) {
+            super(VARDEF, loc);
+            this.name = name;
+            this.type = type;
+            this.isBinding = bind;
         }
 
     	@Override
@@ -449,7 +514,11 @@ public abstract class Tree {
 
     	@Override
     	public void printTo(IndentPrintWriter pw) {
-    		pw.print("vardef " + name + " ");
+            if (isBinding) {
+                pw.print("varbind " + name + " ");
+            } else {
+                pw.print("vardef " + name + " ");
+            }
     		type.printTo(pw);
     		pw.println();
     	}
@@ -717,6 +786,131 @@ public abstract class Tree {
     		}
     	}
     }
+	
+    /**
+     * A object copy statement
+     */
+    public static class ObjectCopy extends Tree {
+        public String identifier;
+        public Expr expr;
+
+        public ObjectCopy(String identifier, Expr expr, Location loc) {
+            super(OBJECTCOPY, loc);
+            this.identifier = identifier;
+            this.expr = expr;
+        }
+
+        @Override
+        public void accept(Visitor v) {
+            v.visitObjectCopy(this);
+        }
+
+        @Override
+        public void printTo(IndentPrintWriter pw) {
+            pw.println("scopy");
+            pw.incIndent();
+            pw.println(identifier);
+            if (expr != null) {
+                expr.printTo(pw);
+            }
+            pw.decIndent();
+        }
+
+    }
+
+    public static class Foreach extends Tree {
+        public VarDef varBind;
+        public Expr source;
+        public Expr condition;
+        public Tree stmt;
+
+        public Foreach(VarDef varBind, Expr source, Expr condition, Tree stmt, Location loc) {
+            super(FOREACH, loc);
+            this.varBind = varBind;
+            this.source = source;
+            this.condition = condition;
+            this.stmt = stmt;
+        }
+
+        @Override
+        public void accept(Visitor v) {
+            v.visitForeach(this);
+        }
+
+        @Override
+        public void printTo(IndentPrintWriter pw) {
+            pw.println("foreach");
+            pw.incIndent();
+            varBind.printTo(pw);
+            source.printTo(pw);
+            condition.printTo(pw);
+            stmt.printTo(pw);
+            pw.decIndent();
+        }
+    }
+
+
+    public static class GuardedIf extends Tree {
+
+        public List<Tree.GuardedSub> guards;
+
+        public GuardedIf(List<Tree> guards, Location loc) {
+            super(GUARDEDIFSTMT, loc);
+            this.guards = new ArrayList<GuardedSub>();
+            for (Tree guard : guards) {
+                this.guards.add((Tree.GuardedSub)guard);
+            }
+        }
+
+
+        @Override
+        public void accept(Visitor v) {
+            v.visitGuardedIf(this);
+        }
+
+
+        @Override
+        public void printTo(IndentPrintWriter pw) {
+            pw.println("guarded");
+            pw.incIndent();
+            if (guards.isEmpty()) {
+                pw.println("<empty>");
+            } else {
+                for (Tree.GuardedSub guards : guards) {
+                    guards.printTo(pw);
+                }
+            }
+            pw.decIndent();
+        }
+    }
+
+
+    public static class GuardedSub extends Tree {
+
+        public Expr expr;
+        public Tree stmt;
+
+        public GuardedSub(Expr expr, Tree stmt, Location loc) {
+            super(GUARDEDSUBSTMT, loc);
+            this.expr = expr;
+            this.stmt = stmt;
+        }
+
+        @Override
+        public void accept(Visitor v) {
+            v.visitGuardedSub(this);
+        }
+
+        @Override
+        public void printTo(IndentPrintWriter pw) {
+            pw.println("guard");
+            pw.incIndent();
+            expr.printTo(pw);
+            stmt.printTo(pw);
+            pw.decIndent();
+        }
+    }
+	
 
     public abstract static class Expr extends Tree {
 
@@ -865,6 +1059,7 @@ public abstract class Tree {
     	}
     }
 
+
     /**
       * A unary operation.
       */
@@ -971,6 +1166,12 @@ public abstract class Tree {
     		case GE:
     			binaryOperatorPrintTo(pw, "geq");
     			break;
+            case ARRAYREPEAT:
+                binaryOperatorPrintTo(pw, "array repeat");
+                break;
+            case ARRAYCONCAT:
+                binaryOperatorPrintTo(pw, "array concat");
+                break;
     		}
     	}
     }
@@ -1128,34 +1329,6 @@ public abstract class Tree {
     	}
     }
 
-    /**
-      * An array selection
-      */
-    public static class Indexed extends LValue {
-
-    	public Expr array;
-    	public Expr index;
-
-        public Indexed(Expr array, Expr index, Location loc) {
-            super(INDEXED, loc);
-    		this.array = array;
-    		this.index = index;
-        }
-
-    	@Override
-        public void accept(Visitor v) {
-            v.visitIndexed(this);
-        }
-
-    	@Override
-    	public void printTo(IndentPrintWriter pw) {
-    		pw.println("arrref");
-    		pw.incIndent();
-    		array.printTo(pw);
-    		index.printTo(pw);
-    		pw.decIndent();
-    	}
-    }
 
     /**
       * An identifier
@@ -1239,7 +1412,196 @@ public abstract class Tree {
   			pw.println("null");
     	}
     }
+	
+    public static class ArrayConstant extends Expr {
 
+        public List<Expr> constants;
+
+        public ArrayConstant(List<Expr> constants, Location loc) {
+            super(ARRAYCONSTANT, loc);
+            this.constants = constants;
+        }
+
+        @Override
+        public void accept(Visitor v) {
+            v.visitArrayConstant(this);
+        }
+
+        @Override
+        public void printTo(IndentPrintWriter pw) {
+            pw.println("array const");
+            pw.incIndent();
+            if (constants == null || constants.isEmpty()) {
+                pw.println("<empty>");
+            } else {
+                for (Expr constant : constants) {
+                    constant.printTo(pw);
+                }
+            }
+            pw.decIndent();
+        }
+    }
+	
+    /**
+     * Access certain range of one array
+     */
+    public static class ArrayRange extends Expr {
+        public Expr array;
+        public Expr from;
+        public Expr to;
+
+        public ArrayRange(Expr array, Expr from, Expr to, Location loc) {
+            super(ARRAYRANGE, loc);
+            this.array = array;
+            this.from = from;
+            this.to = to;
+        }
+
+        @Override
+        public void accept(Visitor v) {
+            v.visitArrayRange(this);
+        }
+
+        @Override
+        public void printTo(IndentPrintWriter pw) {
+            pw.println("arrref");
+            pw.incIndent();
+            array.printTo(pw);
+
+            pw.println("range");
+            pw.incIndent();
+            from.printTo(pw);
+            to.printTo(pw);
+            pw.decIndent();
+
+            pw.decIndent();
+        }
+    }
+
+    /**
+     * Access certain element of one array
+     */
+    public static class ArrayElement extends Expr {
+        public Expr array;
+        public Expr index;
+        public Expr defaultValue;
+
+        public ArrayElement(Expr array, Expr index, Expr defaultValue, Location loc) {
+            super(ARRAYELEMENT, loc);
+            this.array = array;
+            this.index = index;
+            this.defaultValue = defaultValue;
+        }
+
+        @Override
+        public void accept(Visitor v) {
+            v.visitArrayElement(this);
+        }
+
+        @Override
+        public void printTo(IndentPrintWriter pw) {
+            pw.println("arrref");
+            pw.incIndent();
+            array.printTo(pw);
+            index.printTo(pw);
+
+            pw.println("default");
+            pw.incIndent();
+            defaultValue.printTo(pw);
+            pw.decIndent();
+
+            pw.decIndent();
+        }
+    }
+
+    /**
+     * Array comprehension expression
+     */
+    public static class ArrayComp extends Expr {
+        public String varName;
+        public Expr source;
+        public Expr condition;
+        public Expr result;
+
+        public ArrayComp(String varName, Expr source, Expr condition, Expr result, Location loc) {
+            super(ARRAYCOMP, loc);
+            this.varName = varName;
+            this.source = source;
+            this.condition = condition;
+            this.result = result;
+        }
+
+        @Override
+        public void accept(Visitor v) {
+            v.visitArrayComp(this);
+        }
+
+        @Override
+        public void printTo(IndentPrintWriter pw) {
+            pw.println("array comp");
+            pw.incIndent();
+            pw.println("varbind " + varName);
+            source.printTo(pw);
+            condition.printTo(pw);
+            result.printTo(pw);
+            pw.decIndent();
+        }
+    }
+
+    /**
+      * An array selection
+      */
+    public static class Indexed extends LValue {
+
+    	public Expr array;
+    	public Expr index;
+
+        public Indexed(Expr array, Expr index, Location loc) {
+            super(INDEXED, loc);
+    		this.array = array;
+    		this.index = index;
+        }
+
+    	@Override
+        public void accept(Visitor v) {
+            v.visitIndexed(this);
+        }
+
+    	@Override
+    	public void printTo(IndentPrintWriter pw) {
+    		pw.println("arrref");
+    		pw.incIndent();
+    		array.printTo(pw);
+    		index.printTo(pw);
+    		pw.decIndent();
+    	}
+    }
+	
+	
+    /**
+     * A variable with automatic deducted type
+     */
+    public static class DeductedVar extends LValue {
+
+        public String name;
+
+        public DeductedVar(String name, Location loc) {
+            super(DEDUCTEDVAR, loc);
+            this.name = name;
+        }
+
+        @Override
+        public void accept(Visitor v) {
+            v.visitDeductedVar(this);
+        }
+
+        @Override
+        public void printTo(IndentPrintWriter pw) {
+            pw.println("var " + name);
+        }
+    }
+
+	
     public static abstract class TypeLiteral extends Tree {
     	
     	public Type type;
@@ -1284,6 +1646,23 @@ public abstract class Tree {
     			pw.print("stringtype");
     		}
     	}
+    }
+	
+    public static class TypeDeducted extends TypeLiteral {
+
+        public TypeDeducted(Location loc) {
+            super(TYPEDEDUCTED, loc);
+        }
+
+        @Override
+        public void accept(Visitor v) {
+            v.visitTypeDeducted(this);
+        }
+
+        @Override
+        public void printTo(IndentPrintWriter pw) {
+            pw.print("var");
+        }
     }
 
     public static class TypeClass extends TypeLiteral {
@@ -1333,7 +1712,7 @@ public abstract class Tree {
     /**
       * A generic visitor class for trees.
       */
-    public static abstract class Visitor {
+    public static class Visitor {
 
         public Visitor() {
             super();
@@ -1370,6 +1749,10 @@ public abstract class Tree {
         public void visitForLoop(ForLoop that) {
             visitTree(that);
         }
+		
+        public void visitForeach(Foreach that) {
+            visitTree(that);
+        }
 
         public void visitIf(If that) {
             visitTree(that);
@@ -1384,6 +1767,18 @@ public abstract class Tree {
         }
 
         public void visitReturn(Return that) {
+            visitTree(that);
+        }
+		
+        public void visitObjectCopy(ObjectCopy that) {
+            visitTree(that);
+        }
+		
+        public void visitGuardedIf(GuardedIf that) {
+            visitTree(that);
+        }
+
+        public void visitGuardedSub(GuardedSub that) {
             visitTree(that);
         }
 
@@ -1426,6 +1821,22 @@ public abstract class Tree {
         public void visitPrint(Print that) {
             visitTree(that);
         }
+		
+        public void visitArrayConstant(ArrayConstant that) {
+            visitTree(that);
+        }
+
+        public void visitArrayRange(ArrayRange that) {
+            visitTree(that);
+        }
+
+        public void visitArrayElement(ArrayElement that) {
+            visitTree(that);
+        }
+
+        public void visitArrayComp(ArrayComp that) {
+            visitTree(that);
+        }
 
         public void visitThisExpr(ThisExpr that) {
             visitTree(that);
@@ -1444,6 +1855,10 @@ public abstract class Tree {
         }
 
         public void visitIndexed(Indexed that) {
+            visitTree(that);
+        }
+		
+        public void visitDeductedVar(DeductedVar that) {
             visitTree(that);
         }
 
@@ -1468,6 +1883,10 @@ public abstract class Tree {
         }
 
         public void visitTypeArray(TypeArray that) {
+            visitTree(that);
+        }
+		
+        public void visitTypeDeducted(TypeDeducted that) {
             visitTree(that);
         }
 
