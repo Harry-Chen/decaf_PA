@@ -611,8 +611,9 @@ public class TypeCheck extends Tree.Visitor {
 			case Tree.MOD:
 				return BaseType.INT;
             case Tree.ARRAYREPEAT:
+            case Tree.ARRAYCONCAT:
                 return BaseType.ERROR;
-			default:
+            default:
 				return BaseType.BOOL;
 			}
 		}
@@ -620,59 +621,64 @@ public class TypeCheck extends Tree.Visitor {
 		boolean compatible = false;
 		Type returnType = BaseType.ERROR;
 		switch (op) {
-		case Tree.PLUS:
-		case Tree.MINUS:
-		case Tree.MUL:
-		case Tree.DIV:
-			compatible = left.type.equals(BaseType.INT)
-					&& left.type.equal(right.type);
-			returnType = left.type;
-			break;
-		case Tree.GT:
-		case Tree.GE:
-		case Tree.LT:
-		case Tree.LE:
-			compatible = left.type.equal(BaseType.INT)
-					&& left.type.equal(right.type);
-			returnType = BaseType.BOOL;
-			break;
-		case Tree.MOD:
-			compatible = left.type.equal(BaseType.INT)
-					&& right.type.equal(BaseType.INT);
-			returnType = BaseType.INT;
-			break;
-		case Tree.EQ:
-		case Tree.NE:
-			compatible = left.type.compatible(right.type)
-					|| right.type.compatible(left.type);
-			returnType = BaseType.BOOL;
-			break;
-		case Tree.AND:
-		case Tree.OR:
-			compatible = left.type.equal(BaseType.BOOL)
-					&& right.type.equal(BaseType.BOOL);
-			returnType = BaseType.BOOL;
-			break;
-        case Tree.ARRAYREPEAT: {
-            boolean leftError = false;
-            if (left.type.equal(BaseType.UNKNOWN) || left.type.equal(BaseType.VOID)) {
-                issueError(new BadArrElementError(left.loc));
-                leftError = true;
-            }
-            if (!right.type.equal(BaseType.INT)) {
-                issueError(new BadArrTimesError(right.loc));
-                returnType = BaseType.ERROR;
-            } else {
-                if (!leftError) {
-                    returnType = new ArrayType(left.type);
+            case Tree.PLUS:
+            case Tree.MINUS:
+            case Tree.MUL:
+            case Tree.DIV:
+                compatible = left.type.equals(BaseType.INT)
+                        && left.type.equal(right.type);
+                returnType = left.type;
+                break;
+            case Tree.GT:
+            case Tree.GE:
+            case Tree.LT:
+            case Tree.LE:
+                compatible = left.type.equal(BaseType.INT)
+                        && left.type.equal(right.type);
+                returnType = BaseType.BOOL;
+                break;
+            case Tree.MOD:
+                compatible = left.type.equal(BaseType.INT)
+                        && right.type.equal(BaseType.INT);
+                returnType = BaseType.INT;
+                break;
+            case Tree.EQ:
+            case Tree.NE:
+                compatible = left.type.compatible(right.type)
+                        || right.type.compatible(left.type);
+                returnType = BaseType.BOOL;
+                break;
+            case Tree.AND:
+            case Tree.OR:
+                compatible = left.type.equal(BaseType.BOOL)
+                        && right.type.equal(BaseType.BOOL);
+                returnType = BaseType.BOOL;
+                break;
+            case Tree.ARRAYREPEAT: {
+                boolean leftError = false;
+                if (left.type.equal(BaseType.UNKNOWN) || left.type.equal(BaseType.VOID)) {
+                    issueError(new BadArrElementError(left.loc));
+                    leftError = true;
                 }
+                if (!right.type.equal(BaseType.INT)) {
+                    issueError(new BadArrTimesError(right.loc));
+                    returnType = BaseType.ERROR;
+                } else {
+                    if (!leftError) {
+                        returnType = new ArrayType(left.type);
+                    }
+                }
+                // to skip following binary op error
+                compatible = true;
+                break;
             }
-            // to skip following binary op error
-            compatible = true;
-            break;
-        }
-		default:
-			break;
+            // FIXME: not implemented
+            case Tree.ARRAYCONCAT:
+                compatible = true;
+                returnType = BaseType.ERROR;
+                break;
+            default:
+                break;
 		}
 
 		if (!compatible) {
