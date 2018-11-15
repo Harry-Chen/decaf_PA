@@ -427,8 +427,21 @@ public class TypeCheck extends Tree.Visitor {
         }
         if (assign.left.type.equal(BaseType.UNKNOWN)) {
             var left = (Tree.DeductedVar) assign.left;
-            left.type = assign.expr.type;
-            ((Variable) table.lookup(left.name, true)).setType(assign.expr.type);
+            var rightType = assign.expr.type;
+            boolean typeError = false;
+            if (rightType == BaseType.VOID) {
+                issueError(new BadVarTypeError(assign.left.loc, ((Tree.DeductedVar) assign.left).name));
+                typeError = true;
+            } else if (rightType == BaseType.UNKNOWN) {
+                typeError = true;
+            }
+            if (!typeError) {
+                left.type = rightType;
+                ((Variable) table.lookup(left.name, true)).setType(rightType);
+            } else {
+                left.type = BaseType.ERROR;
+                ((Variable) table.lookup(left.name, true)).setType(BaseType.ERROR);
+            }
             return;
         }
         if (assign.left.type.isFuncType() || !assign.expr.type
@@ -711,6 +724,11 @@ public class TypeCheck extends Tree.Visitor {
             arrayElement.type = ((ArrayType) arrayElement.array.type).getElementType();
         } else {
             issueError(new BadArrOperArgError(arrayElement.array.loc));
+
+            if (!arrayElement.index.type.equal(BaseType.ERROR) && !arrayElement.index.type.equal(BaseType.INT)) {
+                issueError(new BadArrIndexError(arrayElement.index.loc));
+            }
+
             var value = arrayElement.defaultValue;
             if (value.type.equal(BaseType.VOID) || value.type.equal(BaseType.UNKNOWN)) {
                 // issueError(new BadArrElementError(value.loc));
@@ -729,7 +747,6 @@ public class TypeCheck extends Tree.Visitor {
         breaks.push(foreach);
 
 	    foreach.source.accept(this);
-	    foreach.condition.accept(this);
 
 	    var varType = foreach.varDef.type;
 
@@ -744,11 +761,9 @@ public class TypeCheck extends Tree.Visitor {
 	            typeError = true;
             }
             if (typeError) {
-                varType.type = BaseType.ERROR;
                 ((Variable) table.lookup(foreach.varDef.name, false)).setType(BaseType.ERROR);
             } else {
                 var elementType = ((ArrayType) foreach.source.type).getElementType();
-                varType.type = elementType;
                 ((Variable) table.lookup(foreach.varDef.name, false)).setType(elementType);
             }
         } else { // type specified by user
@@ -760,8 +775,10 @@ public class TypeCheck extends Tree.Visitor {
 	                if (!elementType.compatible(varType.type)) {
                         issueError(new BadForeachTypeError(varType.loc,
                                 varType.type.toString(), elementType.toString()));
-                        varType.type = elementType;
-                        ((Variable) table.lookup(foreach.varDef.name, false)).setType(elementType);
+                    }
+                    if (varType.type.equal(BaseType.VOID)) {
+                        issueError(new BadVarTypeError(varType.loc, foreach.varDef.name));
+                        ((Variable) table.lookup(foreach.varDef.name, false)).setType(BaseType.ERROR);
                     }
                 }
             }
