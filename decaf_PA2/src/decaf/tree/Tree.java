@@ -792,12 +792,14 @@ public abstract class Tree {
      */
     public static class ObjectCopy extends Tree {
         public String identifier;
+        public Tree.Ident ident;
         public Expr expr;
 
-        public ObjectCopy(String identifier, Expr expr, Location loc) {
+        public ObjectCopy(Tree.Ident ident, Expr expr, Location loc) {
             super(OBJECTCOPY, loc);
-            this.identifier = identifier;
+            this.ident = ident;
             this.expr = expr;
+            this.identifier = ident.name;
         }
 
         @Override
@@ -1584,10 +1586,12 @@ public abstract class Tree {
     public static class DeductedVar extends LValue {
 
         public String name;
+        public VarDef def;
 
-        public DeductedVar(String name, Location loc) {
-            super(DEDUCTEDVAR, loc);
+        public DeductedVar(String name, Location locName, Location locVar) {
+            super(DEDUCTEDVAR, locName);
             this.name = name;
+            this.def = new Tree.VarDef(name, new TypeDeducted(locVar), locName);
         }
 
         @Override

@@ -6,31 +6,8 @@ import java.util.Stack;
 
 import decaf.Driver;
 import decaf.Location;
+import decaf.error.*;
 import decaf.tree.Tree;
-import decaf.error.BadArgCountError;
-import decaf.error.BadArgTypeError;
-import decaf.error.BadArrElementError;
-import decaf.error.BadLengthArgError;
-import decaf.error.BadLengthError;
-import decaf.error.BadNewArrayLength;
-import decaf.error.BadPrintArgError;
-import decaf.error.BadReturnTypeError;
-import decaf.error.BadTestExpr;
-import decaf.error.BreakOutOfLoopError;
-import decaf.error.ClassNotFoundError;
-import decaf.error.DecafError;
-import decaf.error.FieldNotAccessError;
-import decaf.error.FieldNotFoundError;
-import decaf.error.IncompatBinOpError;
-import decaf.error.IncompatUnOpError;
-import decaf.error.NotArrayError;
-import decaf.error.NotClassError;
-import decaf.error.NotClassFieldError;
-import decaf.error.NotClassMethodError;
-import decaf.error.RefNonStaticError;
-import decaf.error.SubNotIntError;
-import decaf.error.ThisInStaticFuncError;
-import decaf.error.UndeclVarError;
 import decaf.frontend.Parser;
 import decaf.scope.ClassScope;
 import decaf.scope.FormalScope;
@@ -134,6 +111,11 @@ public class TypeCheck extends Tree.Visitor {
 			issueError(new SubNotIntError(indexed.getLocation()));
 		}
 	}
+
+	@Override
+    public void visitDeductedVar(Tree.DeductedVar deductedVar) {
+	    deductedVar.type = BaseType.UNKNOWN;
+    }
 
 	private void checkCallExpr(Tree.CallExpr callExpr, Symbol f) {
 		Type receiverType = callExpr.receiver == null ? ((ClassScope) table
@@ -439,12 +421,20 @@ public class TypeCheck extends Tree.Visitor {
 	public void visitAssign(Tree.Assign assign) {
 		assign.left.accept(this);
 		assign.expr.accept(this);
-		if (!assign.left.type.equal(BaseType.ERROR)
-				&& (assign.left.type.isFuncType() || !assign.expr.type
-						.compatible(assign.left.type))) {
+
+		if (assign.left.type.equal(BaseType.ERROR)) {
+		    return;
+        }
+        if (assign.left.type.equal(BaseType.UNKNOWN)) {
+            var left = (Tree.DeductedVar) assign.left;
+            left.type = assign.expr.type;
+            ((Variable) table.lookup(left.name, true)).setType(assign.expr.type);
+            return;
+        }
+        if (assign.left.type.isFuncType() || !assign.expr.type
+                .compatible(assign.left.type)) {
 			issueError(new IncompatBinOpError(assign.getLocation(),
-					assign.left.type.toString(), "=", assign.expr.type
-							.toString()));
+                    assign.left.type.toString(), "=", assign.expr.type.toString()));
 		}
 	}
 
@@ -529,6 +519,40 @@ public class TypeCheck extends Tree.Visitor {
 		breaks.pop();
 	}
 
+	@Override
+    public void visitObjectCopy(Tree.ObjectCopy objectCopy) {
+	    objectCopy.ident.accept(this);
+        objectCopy.expr.accept(this);
+
+        System.err.println(objectCopy.expr.type.toString() + objectCopy.ident.type.toString());
+
+
+        if (objectCopy.ident.type.isClassType()) {
+            if (!objectCopy.expr.type.equal(BaseType.ERROR) && !objectCopy.expr.type.equal(objectCopy.ident.type)) {
+                issueError(new BadScopySrcError(objectCopy.loc,
+                        objectCopy.expr.type.toString(), objectCopy.ident.type.toString()));
+            }
+        } else {
+            if (!objectCopy.ident.type.equal(BaseType.ERROR)) {
+                issueError(new BadScopyArgError(objectCopy.ident.loc, "1", objectCopy.ident.type.toString()));
+            }
+            if (!objectCopy.expr.type.equal(BaseType.ERROR) && !objectCopy.expr.type.isClassType()) {
+                issueError(new BadScopyArgError(objectCopy.expr.loc, "2", objectCopy.expr.type.toString()));
+            }
+        }
+
+    }
+
+
+    @Override
+    public void visitGuardedIf(Tree.GuardedIf guardedIf) {
+	    for (var guardedSub : guardedIf.guards) {
+	        checkTestExpr(guardedSub.expr);
+	        guardedSub.stmt.accept(this);
+        }
+    }
+
+
 	// visiting types
 	@Override
 	public void visitTypeIdent(Tree.TypeIdent type) {
@@ -603,7 +627,7 @@ public class TypeCheck extends Tree.Visitor {
 		case Tree.DIV:
 			compatible = left.type.equals(BaseType.INT)
 					&& left.type.equal(right.type);
-			returnType = left.type;
+			returnType = BaseType.INT;
 			break;
 		case Tree.GT:
 		case Tree.GE:

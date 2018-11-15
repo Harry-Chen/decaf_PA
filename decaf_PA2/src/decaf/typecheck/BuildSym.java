@@ -3,16 +3,8 @@ package decaf.typecheck;
 import java.util.Iterator;
 
 import decaf.Driver;
+import decaf.error.*;
 import decaf.tree.Tree;
-import decaf.error.BadArrElementError;
-import decaf.error.BadInheritanceError;
-import decaf.error.BadOverrideError;
-import decaf.error.BadVarTypeError;
-import decaf.error.ClassNotFoundError;
-import decaf.error.DecafError;
-import decaf.error.DeclConflictError;
-import decaf.error.NoMainClassError;
-import decaf.error.OverridingVarError;
 import decaf.scope.ClassScope;
 import decaf.scope.GlobalScope;
 import decaf.scope.LocalScope;
@@ -46,7 +38,7 @@ public class BuildSym extends Tree.Visitor {
 		program.globalScope = new GlobalScope();
 		table.open(program.globalScope);
 		for (Tree.ClassDef cd : program.classes) {
-			Class c = new Class(cd.name, cd.parent, cd.getLocation());
+			Class c = new Class(cd.name, cd.parent, cd.getLocation(), cd.sealed);
 			Class earlier = table.lookupClass(cd.name);
 			if (earlier != null) {
 				issueError(new DeclConflictError(cd.getLocation(), cd.name,
@@ -61,11 +53,15 @@ public class BuildSym extends Tree.Visitor {
 			Class c = cd.symbol;
 			if (cd.parent != null && c.getParent() == null) {
 				issueError(new ClassNotFoundError(cd.getLocation(), cd.parent));
-				c.dettachParent();
+				c.detachParent();
 			}
 			if (calcOrder(c) <= calcOrder(c.getParent())) {
 				issueError(new BadInheritanceError(cd.getLocation()));
-				c.dettachParent();
+				c.detachParent();
+			}
+			if (cd.parent != null && c.getParent().getSealed()) {
+				issueError(new BadSealedInherError(cd.getLocation()));
+				c.detachParent();
 			}
 		}
 
@@ -104,7 +100,7 @@ public class BuildSym extends Tree.Visitor {
 
 	@Override
 	public void visitVarDef(Tree.VarDef varDef) {
-		varDef.type.accept(this);
+        varDef.type.accept(this);
 		if (varDef.type.type.equal(BaseType.VOID)) {
 			issueError(new BadVarTypeError(varDef.getLocation(), varDef.name));
 			// for argList
@@ -204,6 +200,11 @@ public class BuildSym extends Tree.Visitor {
 		}
 	}
 
+	@Override
+    public void visitTypeDeducted(Tree.TypeDeducted typeDeducted) {
+	    typeDeducted.type = BaseType.UNKNOWN;
+    }
+
 	// for VarDecl in LocalScope
 	@Override
 	public void visitBlock(Tree.Block block) {
@@ -238,6 +239,23 @@ public class BuildSym extends Tree.Visitor {
 			whileLoop.loopBody.accept(this);
 		}
 	}
+
+    @Override
+    public void visitGuardedIf(Tree.GuardedIf guardedIf) {
+        for (var guardedSub : guardedIf.guards) {
+            guardedSub.stmt.accept(this);
+        }
+    }
+
+    @Override
+    public void visitAssign(Tree.Assign assign) {
+	    assign.left.accept(this);
+    }
+
+    @Override
+    public void visitDeductedVar(Tree.DeductedVar deductedVar) {
+        deductedVar.def.accept(this);
+    }
 
 	private int calcOrder(Class c) {
 		if (c == null) {

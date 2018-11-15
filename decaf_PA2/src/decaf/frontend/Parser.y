@@ -238,7 +238,7 @@ Receiver     	:	Expr '.'
 
 LValue          :   VAR IDENTIFIER
                     {
-                        $$.lvalue = new Tree.DeductedVar($2.ident, $2.loc);
+                        $$.lvalue = new Tree.DeductedVar($2.ident, $2.loc, $1.loc);
                     }
                 |   Receiver IDENTIFIER
 					{
@@ -572,7 +572,7 @@ PrintStmt       :	PRINT '(' ExprList ')'
 
 OCStmt          :   SCOPY '(' IDENTIFIER ',' Expr ')'
                     {
-                        $$.stmt = new Tree.ObjectCopy($3.ident, $5.expr, $1.loc);
+                        $$.stmt = new Tree.ObjectCopy(new Tree.Ident(null, $3.ident, $3.loc), $5.expr, $1.loc);
                     }
                 ;
 

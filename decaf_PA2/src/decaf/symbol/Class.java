@@ -22,6 +22,8 @@ public class Class extends Symbol {
 
 	private int size;
 
+	private boolean sealed;
+
 	public int getSize() {
 		return size;
 	}
@@ -46,7 +48,11 @@ public class Class extends Symbol {
 		this.numVar = numVar;
 	}
 
-	public Class(String name, String parentName, Location location) {
+	public boolean getSealed() {
+		return sealed;
+	}
+
+	public Class(String name, String parentName, Location location, boolean sealed) {
 		this.name = name;
 		this.parentName = parentName;
 		this.location = location;
@@ -55,6 +61,7 @@ public class Class extends Symbol {
 		this.numNonStaticFunc = -1;
 		this.numVar = -1;
 		this.associatedScope = new ClassScope(this);
+		this.sealed = sealed;
 	}
 
 	public void createType() {
@@ -112,7 +119,7 @@ public class Class extends Symbol {
 		this.order = order;
 	}
 
-	public void dettachParent() {
+	public void detachParent() {
 		parentName = null;
 	}
 
