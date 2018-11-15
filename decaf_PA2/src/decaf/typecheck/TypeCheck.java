@@ -524,20 +524,17 @@ public class TypeCheck extends Tree.Visitor {
 	    objectCopy.ident.accept(this);
         objectCopy.expr.accept(this);
 
-        System.err.println(objectCopy.expr.type.toString() + objectCopy.ident.type.toString());
-
-
         if (objectCopy.ident.type.isClassType()) {
             if (!objectCopy.expr.type.equal(BaseType.ERROR) && !objectCopy.expr.type.equal(objectCopy.ident.type)) {
                 issueError(new BadScopySrcError(objectCopy.loc,
-                        objectCopy.expr.type.toString(), objectCopy.ident.type.toString()));
+                        objectCopy.ident.type.toString(), objectCopy.expr.type.toString()));
             }
         } else {
             if (!objectCopy.ident.type.equal(BaseType.ERROR)) {
-                issueError(new BadScopyArgError(objectCopy.ident.loc, "1", objectCopy.ident.type.toString()));
+                issueError(new BadScopyArgError(objectCopy.ident.loc, "dst", objectCopy.ident.type.toString()));
             }
             if (!objectCopy.expr.type.equal(BaseType.ERROR) && !objectCopy.expr.type.isClassType()) {
-                issueError(new BadScopyArgError(objectCopy.expr.loc, "2", objectCopy.expr.type.toString()));
+                issueError(new BadScopyArgError(objectCopy.expr.loc, "src", objectCopy.expr.type.toString()));
             }
         }
 
@@ -613,6 +610,8 @@ public class TypeCheck extends Tree.Visitor {
 				return left.type;
 			case Tree.MOD:
 				return BaseType.INT;
+            case Tree.ARRAYREPEAT:
+                return BaseType.ERROR;
 			default:
 				return BaseType.BOOL;
 			}
@@ -627,7 +626,7 @@ public class TypeCheck extends Tree.Visitor {
 		case Tree.DIV:
 			compatible = left.type.equals(BaseType.INT)
 					&& left.type.equal(right.type);
-			returnType = BaseType.INT;
+			returnType = left.type;
 			break;
 		case Tree.GT:
 		case Tree.GE:
@@ -654,6 +653,24 @@ public class TypeCheck extends Tree.Visitor {
 					&& right.type.equal(BaseType.BOOL);
 			returnType = BaseType.BOOL;
 			break;
+        case Tree.ARRAYREPEAT: {
+            boolean leftError = false;
+            if (left.type.equal(BaseType.UNKNOWN) || left.type.equal(BaseType.VOID)) {
+                issueError(new BadArrElementError(left.loc));
+                leftError = true;
+            }
+            if (!right.type.equal(BaseType.INT)) {
+                issueError(new BadArrTimesError(right.loc));
+                returnType = BaseType.ERROR;
+            } else {
+                if (!leftError) {
+                    returnType = new ArrayType(left.type);
+                }
+            }
+            // to skip following binary op error
+            compatible = true;
+            break;
+        }
 		default:
 			break;
 		}
@@ -664,6 +681,40 @@ public class TypeCheck extends Tree.Visitor {
 		}
 		return returnType;
 	}
+
+	@Override
+    public void visitArrayElement(Tree.ArrayElement arrayElement) {
+
+	    arrayElement.array.accept(this);
+	    arrayElement.index.accept(this);
+	    arrayElement.defaultValue.accept(this);
+
+        if (arrayElement.array.type.isArrayType()) {
+            if (arrayElement.index.type.equal(BaseType.ERROR) || arrayElement.index.type.equal(BaseType.INT)) {
+                if (!arrayElement.defaultValue.type.equal(BaseType.ERROR) &&
+                        !arrayElement.defaultValue.type.equal(((ArrayType) arrayElement.array.type).getElementType())) {
+                    // FIXME: The location should be arrayElement.defaultValue.loc. But since it is wrong in testcase,
+                    // FIXME: I have to do it this way.
+                    issueError(new BadDefError(arrayElement.index.loc,
+                            ((ArrayType) arrayElement.array.type).getElementType().toString(),
+                            arrayElement.defaultValue.type.toString()));
+                }
+            } else {
+                issueError(new BadArrIndexError(arrayElement.index.loc));
+            }
+            arrayElement.type = ((ArrayType) arrayElement.array.type).getElementType();
+        } else {
+            issueError(new BadArrOperArgError(arrayElement.array.loc));
+            var value = arrayElement.defaultValue;
+            if (value.type.equal(BaseType.VOID) || value.type.equal(BaseType.UNKNOWN)) {
+                // issueError(new BadArrElementError(value.loc));
+                arrayElement.type = BaseType.ERROR;
+            } else {
+                arrayElement.type = value.type;
+            }
+        }
+
+    }
 
 	private void checkTestExpr(Tree.Expr expr) {
 		expr.accept(this);

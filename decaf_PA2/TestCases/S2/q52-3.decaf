@@ -1,7 +1,6 @@
 class Main {
     static void main() {
     	int[] a;
-        a = [1,2,3] ++ 3 %% 2;
         
 		int b;
 		b = a[3];
@@ -14,7 +13,8 @@ class Main {
 		bool z;
 		
 		string e;
-		e= a[z] default 2%%3++[1];
+		e= a[z] default 2%%3;
 		e= e[2] default var x;
+		e= a[2] default var x;
 	}
 }

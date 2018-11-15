@@ -14,7 +14,7 @@ import subprocess
 import sys
 
 def read_txt_file(filename):
-    with open(filename,'r') as f:
+    with open(filename,'a+') as f:
         txt = f.read().strip()
     # Python should be able to do it automatically, but just in case...
     txt = txt.replace('\r','')
@@ -22,12 +22,6 @@ def read_txt_file(filename):
 
 def main():
     decaf_jar = os.path.join('..', '..', 'result', 'decaf.jar')
-    # in case output dir not exists
-    try:
-        if not os.path.isdir('output'):
-            os.makedirs('output')
-    except:
-        os.makedirs('output', exist_ok=True)
     names = sys.argv[1:]
     if not names:
         names = sorted(os.listdir('.'))
@@ -46,6 +40,8 @@ def main():
             info = 'OK :)'
         else:
             info = 'ERROR!'
+            print "actual\n", actual
+            print "expected\n", expected
         print('{0:<20}{1}'.format(name,info))
     if os.name == 'nt':
         print('Press Enter to continue...')
