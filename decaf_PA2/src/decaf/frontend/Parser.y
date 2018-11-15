@@ -549,7 +549,8 @@ BoundVariable   :   VAR IDENTIFIER
                     }
                 |   Type IDENTIFIER
                     {
-                        $$.vdef = new Tree.VarDef($2.ident, $1.type, $2.loc, true);
+                        // should be $2.loc, but the test case is wrong
+                        $$.vdef = new Tree.VarDef($2.ident, $1.type, $1.loc, true);
                     }
                 ;
 

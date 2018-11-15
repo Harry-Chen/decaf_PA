@@ -410,11 +410,11 @@ public class TypeCheck extends Tree.Visitor {
 
 	@Override
 	public void visitBlock(Tree.Block block) {
-		table.open(block.associatedScope);
+        table.open(block.associatedScope);
 		for (Tree s : block.block) {
 			s.accept(this);
 		}
-		table.close();
+        table.close();
 	}
 
 	@Override
@@ -714,6 +714,62 @@ public class TypeCheck extends Tree.Visitor {
             }
         }
 
+    }
+
+    @Override
+    public void visitForeach(Tree.Foreach foreach) {
+
+        table.open(foreach.associatedScope);
+        breaks.push(foreach);
+
+	    foreach.source.accept(this);
+	    foreach.condition.accept(this);
+
+	    var varType = foreach.varDef.type;
+
+	    if (varType.type.equals(BaseType.UNKNOWN)) { // type deduction
+	        boolean typeError = false;
+	        if (!foreach.source.type.equal(BaseType.ERROR)) {
+	            if (!foreach.source.type.isArrayType()) {
+                    issueError(new BadArrOperArgError(foreach.source.loc));
+                    typeError = true;
+                }
+            } else {
+	            typeError = true;
+            }
+            if (typeError) {
+                varType.type = BaseType.ERROR;
+                ((Variable) table.lookup(foreach.varDef.name, false)).setType(BaseType.ERROR);
+            } else {
+                var elementType = ((ArrayType) foreach.source.type).getElementType();
+                varType.type = elementType;
+                ((Variable) table.lookup(foreach.varDef.name, false)).setType(elementType);
+            }
+        } else { // type specified by user
+	        if (!foreach.source.type.equal(BaseType.ERROR)) {
+	            if (!foreach.source.type.isArrayType()) {
+                    issueError(new BadArrOperArgError(foreach.source.loc));
+                } else {
+	                var elementType = ((ArrayType) foreach.source.type).getElementType();
+	                if (!elementType.compatible(varType.type)) {
+                        issueError(new BadForeachTypeError(varType.loc,
+                                varType.type.toString(), elementType.toString()));
+                        varType.type = elementType;
+                        ((Variable) table.lookup(foreach.varDef.name, false)).setType(elementType);
+                    }
+                }
+            }
+        }
+
+        checkTestExpr(foreach.condition);
+
+        // use the same scope as foreach
+        for (var s : foreach.stmts.block) {
+            s.accept(this);
+        }
+
+        breaks.pop();
+        table.close();
     }
 
 	private void checkTestExpr(Tree.Expr expr) {

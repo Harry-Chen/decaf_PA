@@ -821,17 +821,27 @@ public abstract class Tree {
     }
 
     public static class Foreach extends Tree {
-        public VarDef varBind;
+        public VarDef varDef;
         public Expr source;
         public Expr condition;
         public Tree stmt;
+        // wrap single statement in a block
+        public Block stmts;
+        public LocalScope associatedScope;
 
-        public Foreach(VarDef varBind, Expr source, Expr condition, Tree stmt, Location loc) {
+        public Foreach(VarDef varDef, Expr source, Expr condition, Tree stmt, Location loc) {
             super(FOREACH, loc);
-            this.varBind = varBind;
+            this.varDef = varDef;
             this.source = source;
             this.condition = condition;
             this.stmt = stmt;
+            if (this.stmt instanceof Block) {
+                this.stmts = (Block) this.stmt;
+            } else {
+                var stmtList = new ArrayList<Tree>();
+                stmtList.add(this.stmt);
+                this.stmts = new Block(stmtList, loc);
+            }
         }
 
         @Override
@@ -843,7 +853,7 @@ public abstract class Tree {
         public void printTo(IndentPrintWriter pw) {
             pw.println("foreach");
             pw.incIndent();
-            varBind.printTo(pw);
+            varDef.printTo(pw);
             source.printTo(pw);
             condition.printTo(pw);
             stmt.printTo(pw);

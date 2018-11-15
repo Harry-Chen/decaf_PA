@@ -208,12 +208,12 @@ public class BuildSym extends Tree.Visitor {
 	// for VarDecl in LocalScope
 	@Override
 	public void visitBlock(Tree.Block block) {
-		block.associatedScope = new LocalScope(block);
-		table.open(block.associatedScope);
+        block.associatedScope = new LocalScope(block);
+        table.open(block.associatedScope);
 		for (Tree s : block.block) {
 			s.accept(this);
 		}
-		table.close();
+        table.close();
 	}
 
 	@Override
@@ -314,6 +314,18 @@ public class BuildSym extends Tree.Visitor {
 		table.close();
 		c.setCheck(true);
 	}
+
+	@Override
+    public void visitForeach(Tree.Foreach foreach) {
+        foreach.associatedScope = new LocalScope(null);
+        table.open(foreach.associatedScope);
+        foreach.varDef.accept(this);
+        // use the same scope as foreach
+        for (var s : foreach.stmts.block) {
+            s.accept(this);
+        }
+        table.close();
+    }
 
 	private boolean isMainClass(Class c) {
 		if (c == null) {
