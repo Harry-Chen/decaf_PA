@@ -767,18 +767,21 @@ public class TypeCheck extends Tree.Visitor {
                 ((Variable) table.lookup(foreach.varDef.name, false)).setType(elementType);
             }
         } else { // type specified by user
+	        // check T
+            if (varType.type.equal(BaseType.VOID)) {
+                issueError(new BadVarTypeError(varType.loc, foreach.varDef.name));
+                varType.type = BaseType.ERROR;
+                ((Variable) table.lookup(foreach.varDef.name, false)).setType(BaseType.ERROR);
+            }
+	        // check E
 	        if (!foreach.source.type.equal(BaseType.ERROR)) {
 	            if (!foreach.source.type.isArrayType()) {
                     issueError(new BadArrOperArgError(foreach.source.loc));
                 } else {
 	                var elementType = ((ArrayType) foreach.source.type).getElementType();
-	                if (!elementType.compatible(varType.type)) {
+	                if (!varType.type.equal(BaseType.ERROR) && !elementType.compatible(varType.type)) {
                         issueError(new BadForeachTypeError(varType.loc,
                                 varType.type.toString(), elementType.toString()));
-                    }
-                    if (varType.type.equal(BaseType.VOID)) {
-                        issueError(new BadVarTypeError(varType.loc, foreach.varDef.name));
-                        ((Variable) table.lookup(foreach.varDef.name, false)).setType(BaseType.ERROR);
                     }
                 }
             }
