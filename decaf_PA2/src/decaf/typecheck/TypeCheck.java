@@ -433,6 +433,8 @@ public class TypeCheck extends Tree.Visitor {
                 issueError(new BadVarTypeError(assign.left.loc, ((Tree.DeductedVar) assign.left).name));
                 typeError = true;
             } else if (rightType == BaseType.UNKNOWN) {
+            	issueError(new IncompatBinOpError(assign.getLocation(),
+                        assign.left.type.toString(), "=", assign.expr.type.toString()));
                 typeError = true;
             }
             if (!typeError) {
@@ -640,7 +642,7 @@ public class TypeCheck extends Tree.Visitor {
             case Tree.DIV:
                 compatible = left.type.equals(BaseType.INT)
                         && left.type.equal(right.type);
-                returnType = left.type;
+                returnType = left.type != BaseType.UNKNOWN ? left.type : right.type;
                 break;
             case Tree.GT:
             case Tree.GE:
