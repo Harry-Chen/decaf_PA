@@ -13,7 +13,7 @@
 	<property name="bin.dir" value="${result.dir}/bin" />
 	<property name="doc.dir" value="${result.dir}/doc" />
 	<property name="jflex.jar" value="tools/jflex/JFlex.jar" />
-	<condition property="byacc" value="tools/byacc/byacc.exe">
+    <condition property="byacc" value="tools/byacc/byacc.exe">
 		<or>
 			<os family="windows" arch="x86" />
 			<os family="windows" arch="amd64" />
@@ -78,6 +78,12 @@
 			</manifest>
 		</jar>
 	</target>
+
+    <target name="5 runTest" description="Running all tests...">
+        <exec dir="${basedir}/TestCases/S3/" executable="python3.exe" failonerror="true">
+            <arg line="runAll.py" />
+        </exec>
+    </target>
 
 	<!-- 生成JavaDoc -->
 	<target name="5 javadoc" depends="3 compile">

@@ -46,9 +46,3 @@ if __name__ == '__main__':
 			else:
 				info = 'ERROR!'
 		print ('{0:<20}{1}'.format(name,info))
-	if os.name == 'nt':
-		print ('Press Enter to continue...')
-		try:
-			raw_input() # Python 2
-		except:
-			input() # Python 3
