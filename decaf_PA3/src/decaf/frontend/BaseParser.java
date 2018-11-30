@@ -82,7 +82,7 @@ public abstract class BaseParser {
 		case Tree.LT:
 			return "<";
 		default:
-			return "unknow";
+			return "unknown";
 		}
 	}
 }

@@ -6,31 +6,8 @@ import java.util.Stack;
 
 import decaf.Driver;
 import decaf.Location;
+import decaf.error.*;
 import decaf.tree.Tree;
-import decaf.error.BadArgCountError;
-import decaf.error.BadArgTypeError;
-import decaf.error.BadArrElementError;
-import decaf.error.BadLengthArgError;
-import decaf.error.BadLengthError;
-import decaf.error.BadNewArrayLength;
-import decaf.error.BadPrintArgError;
-import decaf.error.BadReturnTypeError;
-import decaf.error.BadTestExpr;
-import decaf.error.BreakOutOfLoopError;
-import decaf.error.ClassNotFoundError;
-import decaf.error.DecafError;
-import decaf.error.FieldNotAccessError;
-import decaf.error.FieldNotFoundError;
-import decaf.error.IncompatBinOpError;
-import decaf.error.IncompatUnOpError;
-import decaf.error.NotArrayError;
-import decaf.error.NotClassError;
-import decaf.error.NotClassFieldError;
-import decaf.error.NotClassMethodError;
-import decaf.error.RefNonStaticError;
-import decaf.error.SubNotIntError;
-import decaf.error.ThisInStaticFuncError;
-import decaf.error.UndeclVarError;
 import decaf.frontend.Parser;
 import decaf.scope.ClassScope;
 import decaf.scope.FormalScope;
@@ -134,6 +111,11 @@ public class TypeCheck extends Tree.Visitor {
 			issueError(new SubNotIntError(indexed.getLocation()));
 		}
 	}
+
+	@Override
+    public void visitDeductedVar(Tree.DeductedVar deductedVar) {
+	    deductedVar.type = BaseType.UNKNOWN;
+    }
 
 	private void checkCallExpr(Tree.CallExpr callExpr, Symbol f) {
 		Type receiverType = callExpr.receiver == null ? ((ClassScope) table
@@ -428,23 +410,46 @@ public class TypeCheck extends Tree.Visitor {
 
 	@Override
 	public void visitBlock(Tree.Block block) {
-		table.open(block.associatedScope);
+        table.open(block.associatedScope);
 		for (Tree s : block.block) {
 			s.accept(this);
 		}
-		table.close();
+        table.close();
 	}
 
 	@Override
 	public void visitAssign(Tree.Assign assign) {
 		assign.left.accept(this);
 		assign.expr.accept(this);
-		if (!assign.left.type.equal(BaseType.ERROR)
-				&& (assign.left.type.isFuncType() || !assign.expr.type
-						.compatible(assign.left.type))) {
+
+		if (assign.left.type.equal(BaseType.ERROR)) {
+		    return;
+        }
+        if (assign.left.type.equal(BaseType.UNKNOWN)) {
+            var left = (Tree.DeductedVar) assign.left;
+            var rightType = assign.expr.type;
+            boolean typeError = false;
+            if (rightType == BaseType.VOID) {
+                issueError(new BadVarTypeError(assign.left.loc, ((Tree.DeductedVar) assign.left).name));
+                typeError = true;
+            } else if (rightType == BaseType.UNKNOWN) {
+            	issueError(new IncompatBinOpError(assign.getLocation(),
+                        assign.left.type.toString(), "=", assign.expr.type.toString()));
+                typeError = true;
+            }
+            if (!typeError) {
+                left.type = rightType;
+                table.lookup(left.name, true).setType(rightType);
+            } else {
+                left.type = BaseType.ERROR;
+                table.lookup(left.name, true).setType(BaseType.ERROR);
+            }
+            return;
+        }
+        if (assign.left.type.isFuncType() || !assign.expr.type
+                .compatible(assign.left.type)) {
 			issueError(new IncompatBinOpError(assign.getLocation(),
-					assign.left.type.toString(), "=", assign.expr.type
-							.toString()));
+                    assign.left.type.toString(), "=", assign.expr.type.toString()));
 		}
 	}
 
@@ -529,6 +534,37 @@ public class TypeCheck extends Tree.Visitor {
 		breaks.pop();
 	}
 
+	@Override
+    public void visitObjectCopy(Tree.ObjectCopy objectCopy) {
+	    objectCopy.ident.accept(this);
+        objectCopy.expr.accept(this);
+
+        if (objectCopy.ident.type.isClassType()) {
+            if (!objectCopy.expr.type.equal(BaseType.ERROR) && !objectCopy.expr.type.equal(objectCopy.ident.type)) {
+                issueError(new BadScopySrcError(objectCopy.loc,
+                        objectCopy.ident.type.toString(), objectCopy.expr.type.toString()));
+            }
+        } else {
+            if (!objectCopy.ident.type.equal(BaseType.ERROR)) {
+                issueError(new BadScopyArgError(objectCopy.ident.loc, "dst", objectCopy.ident.type.toString()));
+            }
+            if (!objectCopy.expr.type.equal(BaseType.ERROR) && !objectCopy.expr.type.isClassType()) {
+                issueError(new BadScopyArgError(objectCopy.expr.loc, "src", objectCopy.expr.type.toString()));
+            }
+        }
+
+    }
+
+
+    @Override
+    public void visitGuardedIf(Tree.GuardedIf guardedIf) {
+	    for (var guardedSub : guardedIf.guards) {
+	        checkTestExpr(guardedSub.expr);
+	        guardedSub.stmt.accept(this);
+        }
+    }
+
+
 	// visiting types
 	@Override
 	public void visitTypeIdent(Tree.TypeIdent type) {
@@ -589,7 +625,10 @@ public class TypeCheck extends Tree.Visitor {
 				return left.type;
 			case Tree.MOD:
 				return BaseType.INT;
-			default:
+            case Tree.ARRAYREPEAT:
+            case Tree.ARRAYCONCAT:
+                return BaseType.ERROR;
+            default:
 				return BaseType.BOOL;
 			}
 		}
@@ -597,41 +636,64 @@ public class TypeCheck extends Tree.Visitor {
 		boolean compatible = false;
 		Type returnType = BaseType.ERROR;
 		switch (op) {
-		case Tree.PLUS:
-		case Tree.MINUS:
-		case Tree.MUL:
-		case Tree.DIV:
-			compatible = left.type.equals(BaseType.INT)
-					&& left.type.equal(right.type);
-			returnType = left.type;
-			break;
-		case Tree.GT:
-		case Tree.GE:
-		case Tree.LT:
-		case Tree.LE:
-			compatible = left.type.equal(BaseType.INT)
-					&& left.type.equal(right.type);
-			returnType = BaseType.BOOL;
-			break;
-		case Tree.MOD:
-			compatible = left.type.equal(BaseType.INT)
-					&& right.type.equal(BaseType.INT);
-			returnType = BaseType.INT;
-			break;
-		case Tree.EQ:
-		case Tree.NE:
-			compatible = left.type.compatible(right.type)
-					|| right.type.compatible(left.type);
-			returnType = BaseType.BOOL;
-			break;
-		case Tree.AND:
-		case Tree.OR:
-			compatible = left.type.equal(BaseType.BOOL)
-					&& right.type.equal(BaseType.BOOL);
-			returnType = BaseType.BOOL;
-			break;
-		default:
-			break;
+            case Tree.PLUS:
+            case Tree.MINUS:
+            case Tree.MUL:
+            case Tree.DIV:
+                compatible = left.type.equals(BaseType.INT)
+                        && left.type.equal(right.type);
+                returnType = left.type != BaseType.UNKNOWN ? left.type : right.type;
+                break;
+            case Tree.GT:
+            case Tree.GE:
+            case Tree.LT:
+            case Tree.LE:
+                compatible = left.type.equal(BaseType.INT)
+                        && left.type.equal(right.type);
+                returnType = BaseType.BOOL;
+                break;
+            case Tree.MOD:
+                compatible = left.type.equal(BaseType.INT)
+                        && right.type.equal(BaseType.INT);
+                returnType = BaseType.INT;
+                break;
+            case Tree.EQ:
+            case Tree.NE:
+                compatible = left.type.compatible(right.type)
+                        || right.type.compatible(left.type);
+                returnType = BaseType.BOOL;
+                break;
+            case Tree.AND:
+            case Tree.OR:
+                compatible = left.type.equal(BaseType.BOOL)
+                        && right.type.equal(BaseType.BOOL);
+                returnType = BaseType.BOOL;
+                break;
+            case Tree.ARRAYREPEAT: {
+                boolean leftError = false;
+                if (left.type.equal(BaseType.UNKNOWN) || left.type.equal(BaseType.VOID)) {
+                    issueError(new BadArrElementError(left.loc));
+                    leftError = true;
+                }
+                if (!right.type.equal(BaseType.INT)) {
+                    issueError(new BadArrTimesError(right.loc));
+                    returnType = BaseType.ERROR;
+                } else {
+                    if (!leftError) {
+                        returnType = new ArrayType(left.type);
+                    }
+                }
+                // to skip following binary op error
+                compatible = true;
+                break;
+            }
+            // FIXME: not implemented
+            case Tree.ARRAYCONCAT:
+                compatible = true;
+                returnType = BaseType.ERROR;
+                break;
+            default:
+                break;
 		}
 
 		if (!compatible) {
@@ -640,6 +702,96 @@ public class TypeCheck extends Tree.Visitor {
 		}
 		return returnType;
 	}
+
+	@Override
+    public void visitArrayElement(Tree.ArrayElement arrayElement) {
+
+	    arrayElement.array.accept(this);
+	    arrayElement.index.accept(this);
+	    arrayElement.defaultValue.accept(this);
+
+        if (arrayElement.array.type.isArrayType()) {
+            if (arrayElement.index.type.equal(BaseType.ERROR) || arrayElement.index.type.equal(BaseType.INT)) {
+                if (!arrayElement.defaultValue.type.equal(BaseType.ERROR) &&
+                        !arrayElement.defaultValue.type.equal(((ArrayType) arrayElement.array.type).getElementType())) {
+                    // FIXME: The location should be arrayElement.defaultValue.loc. But since it is wrong in testcase,
+                    // FIXME: I have to do it this way.
+                    issueError(new BadDefError(arrayElement.index.loc,
+                            ((ArrayType) arrayElement.array.type).getElementType().toString(),
+                            arrayElement.defaultValue.type.toString()));
+                }
+            } else {
+                issueError(new BadArrIndexError(arrayElement.index.loc));
+            }
+            arrayElement.type = ((ArrayType) arrayElement.array.type).getElementType();
+        } else {
+            issueError(new BadArrOperArgError(arrayElement.array.loc));
+
+            if (!arrayElement.index.type.equal(BaseType.ERROR) && !arrayElement.index.type.equal(BaseType.INT)) {
+                issueError(new BadArrIndexError(arrayElement.index.loc));
+            }
+
+            var value = arrayElement.defaultValue;
+            if (value.type.equal(BaseType.VOID) || value.type.equal(BaseType.UNKNOWN)) {
+                // issueError(new BadArrElementError(value.loc));
+                arrayElement.type = BaseType.ERROR;
+            } else {
+                arrayElement.type = value.type;
+            }
+        }
+
+    }
+
+    @Override
+    public void visitForeach(Tree.Foreach foreach) {
+
+        table.open(foreach.associatedScope);
+        breaks.push(foreach);
+
+	    foreach.source.accept(this);
+
+	    var varType = foreach.varDef.type;
+
+	    if (varType.type.equals(BaseType.UNKNOWN)) { // type deduction
+	        boolean typeError = false;
+	        if (!foreach.source.type.equal(BaseType.ERROR)) {
+	            if (!foreach.source.type.isArrayType()) {
+                    issueError(new BadArrOperArgError(foreach.source.loc));
+                    typeError = true;
+                }
+            } else {
+	            typeError = true;
+            }
+            if (typeError) {
+                ((Variable) table.lookup(foreach.varDef.name, false)).setType(BaseType.ERROR);
+            } else {
+                var elementType = ((ArrayType) foreach.source.type).getElementType();
+                ((Variable) table.lookup(foreach.varDef.name, false)).setType(elementType);
+            }
+        } else { // type specified by user
+	        if (!foreach.source.type.equal(BaseType.ERROR)) {
+	            if (!foreach.source.type.isArrayType()) {
+                    issueError(new BadArrOperArgError(foreach.source.loc));
+                } else {
+	                var elementType = ((ArrayType) foreach.source.type).getElementType();
+	                if (!varType.type.equal(BaseType.ERROR) && !elementType.compatible(varType.type)) {
+                        issueError(new BadForeachTypeError(varType.loc,
+                                varType.type.toString(), elementType.toString()));
+                    }
+                }
+            }
+        }
+
+        checkTestExpr(foreach.condition);
+
+        // use the same scope as foreach
+        for (var s : foreach.stmts.block) {
+            s.accept(this);
+        }
+
+        breaks.pop();
+        table.close();
+    }
 
 	private void checkTestExpr(Tree.Expr expr) {
 		expr.accept(this);

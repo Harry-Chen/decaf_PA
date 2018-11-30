@@ -149,6 +149,15 @@ public class SemValue {
 		case Parser.INSTANCEOF:
 			msg = "keyword  : instanceof";
 			break;
+		case Parser.SCOPY:
+			msg = "keyword  : scopy";
+			break;
+		case Parser.SEALED:
+			msg = "keyword  : sealed";
+			break;
+        case Parser.VAR:
+            msg = "keyword  : var";
+            break;
 		case Parser.NEW:
 			msg = "keyword  : new";
 			break;
