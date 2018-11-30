@@ -2,6 +2,7 @@ package decaf.translate;
 
 import java.util.Stack;
 
+import decaf.symbol.Class;
 import decaf.tree.Tree;
 import decaf.backend.OffsetCounter;
 import decaf.machdesc.Intrinsic;
@@ -9,6 +10,7 @@ import decaf.symbol.Variable;
 import decaf.tac.Label;
 import decaf.tac.Temp;
 import decaf.type.BaseType;
+import decaf.type.ClassType;
 
 public class TransPass2 extends Tree.Visitor {
 
@@ -73,9 +75,11 @@ public class TransPass2 extends Tree.Visitor {
 			expr.val = tr.genMul(expr.left.val, expr.right.val);
 			break;
 		case Tree.DIV:
+		    tr.genCheckDivisor(expr.right.val);
 			expr.val = tr.genDiv(expr.left.val, expr.right.val);
 			break;
 		case Tree.MOD:
+            tr.genCheckDivisor(expr.right.val);
 			expr.val = tr.genMod(expr.left.val, expr.right.val);
 			break;
 		case Tree.AND:
@@ -100,6 +104,15 @@ public class TransPass2 extends Tree.Visitor {
 		case Tree.NE:
 			genEquNeq(expr);
 			break;
+        case Tree.ARRAYREPEAT:
+            tr.genCheckArrayRepeatLength(expr.right.val);
+            var elementType = expr.left.type;
+            if (elementType.isClassType()) {
+                expr.val = tr.genNewArray(expr.right.val, expr.left.val, ((ClassType) elementType).getSymbol());
+            } else {
+                expr.val = tr.genNewArray(expr.right.val, expr.left.val, null);
+            }
+            break;
 		}
 	}
 
@@ -357,7 +370,7 @@ public class TransPass2 extends Tree.Visitor {
 	@Override
 	public void visitNewArray(Tree.NewArray newArray) {
 		newArray.length.accept(this);
-		newArray.val = tr.genNewArray(newArray.length.val);
+		newArray.val = tr.genNewArray(newArray.length.val, tr.genLoadImm4(0), null);
 	}
 
 	@Override
@@ -385,7 +398,7 @@ public class TransPass2 extends Tree.Visitor {
 	@Override
 	public void visitTypeTest(Tree.TypeTest typeTest) {
 		typeTest.instance.accept(this);
-		typeTest.val = tr.genInstanceof(typeTest.instance.val,
+		typeTest.val = tr.genInstanceOf(typeTest.instance.val,
 				typeTest.symbol);
 	}
 
@@ -473,5 +486,13 @@ public class TransPass2 extends Tree.Visitor {
         tr.genBranch(judge);
 
         tr.genMark(exit);
+    }
+
+    @Override
+    public void visitObjectCopy(Tree.ObjectCopy objectCopy) {
+	    objectCopy.ident.accept(this);
+	    objectCopy.expr.accept(this);
+	    var clazz = ((ClassType) objectCopy.expr.type).getSymbol();
+        tr.genObjectCopy(clazz, objectCopy.expr.val, objectCopy.ident.symbol.getTemp());
     }
 }

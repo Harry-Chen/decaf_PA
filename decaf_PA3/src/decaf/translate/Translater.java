@@ -371,7 +371,18 @@ public class Translater {
 		genMark(exit);
 	}
 
-	public Temp genNewArray(Temp length) {
+    public void genCheckArrayRepeatLength(Temp length) {
+        Label exit = Label.createLabel();
+        Temp cond = genLes(length, genLoadImm4(0));
+        genBeqz(cond, exit);
+        Temp msg = genLoadStrConst(RuntimeError.ARRAY_REPEAT_LENGTH_ERROR);
+        genParm(msg);
+        genIntrinsicCall(Intrinsic.PRINT_STRING);
+        genIntrinsicCall(Intrinsic.HALT);
+        genMark(exit);
+    }
+
+	public Temp genNewArray(Temp length,Temp value, Class c) {
 		genCheckNewArraySize(length);
 		Temp unit = genLoadImm4(OffsetCounter.WORD_SIZE);
 		Temp size = genAdd(unit, genMul(unit, length));
@@ -380,16 +391,32 @@ public class Translater {
 		genStore(length, obj, 0);
 		Label loop = Label.createLabel();
 		Label exit = Label.createLabel();
-		Temp zero = genLoadImm4(0);
 		append(Tac.genAdd(obj, obj, size));
 		genMark(loop);
 		append(Tac.genSub(size, size, unit));
 		genBeqz(size, exit);
 		append(Tac.genSub(obj, obj, unit));
-		genStore(zero, obj, 0);
+		if (c != null) { // array repeat with type class
+		    var copied = Temp.createTempI4();
+            genObjectCopy(c, value, copied);
+            genStore(copied, obj, 0);
+        } else {
+            genStore(value, obj, 0);
+        }
 		genBranch(loop);
 		genMark(exit);
 		return obj;
+	}
+
+	public void genCheckDivisor(Temp divisor) {
+		var exit = Label.createLabel();
+		var cond = genEqu(divisor, genLoadImm4(0));
+		genBeqz(cond, exit);
+        Temp msg = genLoadStrConst(RuntimeError.DIVISION_BY_ZERO_ERROR);
+        genParm(msg);
+        genIntrinsicCall(Intrinsic.PRINT_STRING);
+        genIntrinsicCall(Intrinsic.HALT);
+		genMark(exit);
 	}
 
 	public void genNewForClass(Class c) {
@@ -428,7 +455,34 @@ public class Translater {
 		endFunc();
 	}
 
-	public Temp genInstanceof(Temp instance, Class c) {
+	public void genObjectCopy(Class c, Temp source, Temp dest) {
+        Temp size = genLoadImm4(c.getSize());
+        genParm(size);
+        genAssign(dest, genIntrinsicCall(Intrinsic.ALLOCATE));
+        int time = c.getSize() / OffsetCounter.WORD_SIZE - 1;
+        if (time != 0) {
+            Temp unit = genLoadImm4(OffsetCounter.WORD_SIZE);
+
+            Label loop = Label.createLabel();
+            Label exit = Label.createLabel();
+            dest = genAdd(dest, size);
+            source = genAdd(source, size);
+
+            genMark(loop);
+            genAssign(dest, genSub(dest, unit));
+            genAssign(source, genSub(source, unit));
+            genAssign(size, genSub(size, unit));
+
+            genBeqz(size, exit);
+            genStore(genLoad(source, 0), dest, 0);
+            genBranch(loop);
+
+            genMark(exit);
+        }
+        genStore(genLoadVTable(c.getVtable()), dest, 0);
+    }
+
+	public Temp genInstanceOf(Temp instance, Class c) {
 		Temp dst = Temp.createTempI4();
 		Label loop = Label.createLabel();
 		Label exit = Label.createLabel();
