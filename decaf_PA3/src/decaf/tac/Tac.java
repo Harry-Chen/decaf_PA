@@ -214,7 +214,7 @@ public class Tac {
 		return new Tac(Kind.PARM, src);
 	}
 
-	private String binanyOpToString(String op) {
+	private String binaryOpToString(String op) {
 		return op0.name + " = (" + op1.name + " " + op + " " + op2.name + ")";
 	}
 
@@ -225,35 +225,35 @@ public class Tac {
 	public String toString() {
 		switch (opc) {
 		case ADD:
-			return binanyOpToString("+");
+			return binaryOpToString("+");
 		case SUB:
-			return binanyOpToString("-");
+			return binaryOpToString("-");
 		case MUL:
-			return binanyOpToString("*");
+			return binaryOpToString("*");
 		case DIV:
-			return binanyOpToString("/");
+			return binaryOpToString("/");
 		case MOD:
-			return binanyOpToString("%");
+			return binaryOpToString("%");
 		case NEG:
 			return unaryOpToString("-");
 		case LAND:
-			return binanyOpToString("&&");
+			return binaryOpToString("&&");
 		case LOR:
-			return binanyOpToString("||");
+			return binaryOpToString("||");
 		case LNOT:
 			return unaryOpToString("!");
 		case GTR:
-			return binanyOpToString(">");
+			return binaryOpToString(">");
 		case GEQ:
-			return binanyOpToString(">=");
+			return binaryOpToString(">=");
 		case EQU:
-			return binanyOpToString("==");
+			return binaryOpToString("==");
 		case NEQ:
-			return binanyOpToString("!=");
+			return binaryOpToString("!=");
 		case LEQ:
-			return binanyOpToString("<=");
+			return binaryOpToString("<=");
 		case LES:
-			return binanyOpToString("<");
+			return binaryOpToString("<");
 		case ASSIGN:
 			return op0.name + " = " + op1.name;
 		case LOAD_VTBL:

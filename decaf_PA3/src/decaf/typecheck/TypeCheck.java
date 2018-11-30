@@ -114,7 +114,8 @@ public class TypeCheck extends Tree.Visitor {
 
 	@Override
     public void visitDeductedVar(Tree.DeductedVar deductedVar) {
-	    deductedVar.type = BaseType.UNKNOWN;
+		deductedVar.type = BaseType.UNKNOWN;
+		deductedVar.lvKind = Tree.LValue.Kind.LOCAL_VAR;
     }
 
 	private void checkCallExpr(Tree.CallExpr callExpr, Symbol f) {

@@ -121,6 +121,12 @@ public class TransPass2 extends Tree.Visitor {
 		}
 	}
 
+
+	@Override
+    public void visitDeductedVar(Tree.DeductedVar deductedVar) {
+	    deductedVar.def.accept(this);
+    }
+
 	@Override
 	public void visitAssign(Tree.Assign assign) {
 		assign.left.accept(this);
@@ -140,8 +146,13 @@ public class TransPass2 extends Tree.Visitor {
 			break;
 		case PARAM_VAR:
 		case LOCAL_VAR:
-			tr.genAssign(((Tree.Ident) assign.left).symbol.getTemp(),
-					assign.expr.val);
+		    if (assign.left instanceof Tree.Ident) {
+                tr.genAssign(((Tree.Ident) assign.left).symbol.getTemp(),
+                        assign.expr.val);
+            } else { // deducted var
+                tr.genAssign(((Tree.DeductedVar) assign.left).def.symbol.getTemp(),
+                        assign.expr.val);
+            }
 			break;
 		}
 	}
@@ -386,4 +397,81 @@ public class TransPass2 extends Tree.Visitor {
 		}
 		typeCast.val = typeCast.expr.val;
 	}
+
+	@Override
+    public void visitGuardedIf(Tree.GuardedIf guardedIf) {
+	    for (var guard: guardedIf.guards) {
+	        guard.expr.accept(this);
+	        var exit = Label.createLabel();
+	        tr.genBeqz(guard.expr.val, exit);
+	        guard.stmt.accept(this);
+	        tr.genMark(exit);
+        }
+    }
+
+    @Override
+    public void visitArrayElement(Tree.ArrayElement arrayElement) {
+        arrayElement.array.accept(this);
+        arrayElement.index.accept(this);
+
+        // if index < 0 or index >= length
+        var length = tr.genLoad(arrayElement.array.val, -OffsetCounter.WORD_SIZE);
+        var cond = tr.genLes(arrayElement.index.val, length);
+        var err = Label.createLabel();
+        tr.genBeqz(cond, err);
+        cond = tr.genGeq(arrayElement.index.val, tr.genLoadImm4(0));
+        tr.genBeqz(cond, err);
+
+        var exit = Label.createLabel();
+        var esz = tr.genLoadImm4(OffsetCounter.WORD_SIZE);
+        var t = tr.genMul(arrayElement.index.val, esz);
+        var base = tr.genAdd(arrayElement.array.val, t);
+        arrayElement.val = tr.genLoad(base, 0);
+        tr.genBranch(exit);
+
+        tr.genMark(err);
+        arrayElement.defaultValue.accept(this);
+        tr.genAssign(arrayElement.val, arrayElement.defaultValue.val);
+
+        tr.genMark(exit);
+    }
+
+    @Override
+    public void visitForeach(Tree.Foreach foreach) {
+
+	    foreach.varDef.accept(this);
+	    foreach.source.accept(this);
+
+        var length = tr.genLoad(foreach.source.val, -OffsetCounter.WORD_SIZE);
+        var i = tr.genLoadImm4(0);
+
+        var judge = Label.createLabel();
+        var exit = Label.createLabel();
+
+        // if i < length
+        tr.genMark(judge);
+        var cond = tr.genLes(i, length);
+        tr.genBeqz(cond, exit);
+
+        // var x = source[i]
+        var esz = tr.genLoadImm4(OffsetCounter.WORD_SIZE);
+        var t = tr.genMul(i, esz);
+        var base = tr.genAdd(foreach.source.val, t);
+        tr.genAssign(foreach.varDef.symbol.getTemp(), tr.genLoad(base, 0));
+
+        // while B
+        foreach.condition.accept(this);
+        tr.genBeqz(foreach.condition.val, exit);
+
+        // do S
+        loopExits.push(exit);
+        foreach.stmts.accept(this);
+        loopExits.pop();
+
+        // i++
+        tr.genAssign(i, tr.genAdd(i, tr.genLoadImm4(1)));
+        tr.genBranch(judge);
+
+        tr.genMark(exit);
+    }
 }
