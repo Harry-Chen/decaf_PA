@@ -1,0 +1,17 @@
+class Main {
+    static void main() {
+    	string [] a;
+    	a = "test" %% 5;
+    	a[1] = "play";
+        Print(a[0]);
+        Print("\n");
+        Print(a[1]);
+        Print("\n");
+        Print(a[2]);
+        Print("\n");
+        Print(a[3]);
+        Print("\n");
+        Print(a[4]);
+        Print("\n");
+	}
+}

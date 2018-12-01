@@ -1,0 +1,70 @@
+class C {
+ int c;
+ void setC(int cc) {
+ this.c = cc;
+ }
+ int getC() {return c;}
+}
+
+class Data{
+ int a;
+ string b;
+ class C c;
+ 
+ void init() {c = new C();}
+
+ int getA() {return a;}
+ string getB() {return b;}
+ int getC() {return c.getC();}
+ 
+ void setA(int aa) { this.a = aa;}
+ void setB(string bb) { this.b = bb;}
+ void setC(int cc) { 
+    this.c.setC(cc);
+ }
+}
+
+class Main {
+ static void main() {
+  class Data alpha;
+  class Data beta;
+  
+  alpha = new Data();
+  alpha.init();
+  alpha.setA(1);
+  alpha.setB("hi");
+  alpha.setC(2);
+
+  Print(alpha.getA()); // should be 1
+  Print(alpha.getB()); // shoule be hi
+  Print(alpha.getC()); // should be 2
+  Print("\n");
+
+  scopy(beta, alpha);
+  
+  Print(alpha.getA()); // should be 1
+  Print(alpha.getB()); // shoule be hi
+  Print(alpha.getC()); // should be 2
+  Print("\n");
+
+  Print(beta.getA()); // should be 1
+  Print(beta.getB()); // shoule be hi
+  Print(beta.getC()); // should be 2
+  Print("\n");
+
+  beta.setA(3);
+  beta.setB("World");
+  beta.setC(100);
+
+  Print(alpha.getA()); // should be 1
+  Print(alpha.getB()); // shoule be hi
+  Print(alpha.getC()); // should be 100
+  Print("\n");
+
+  Print(beta.getA()); // should be 3
+  Print(beta.getB()); // shoule be World
+  Print(beta.getC()); // should be 100
+  Print("\n");
+  
+ }
+}

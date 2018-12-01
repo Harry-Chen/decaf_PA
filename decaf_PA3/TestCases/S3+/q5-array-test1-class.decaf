@@ -1,0 +1,54 @@
+class A {
+    int a;
+    string b;
+    class B c;
+    void init() {
+        c = new B();
+    }
+    void seta(int a){
+    	this.a = a;
+    }
+    void printA(){
+    	Print(a);
+        Print("\n");
+    }
+
+    void setb(int b) {
+        c.setb(b);
+    }
+
+    void printB() {
+        c.printB();
+    }
+}
+
+class B {
+    int b;
+
+    void setb(int b) {
+        this.b = b;
+    }
+
+    void printB() {
+        Print(b);
+        Print("\n");
+    }
+}
+
+class Main {
+    static void main() {
+    	class A [] a;
+    	class A b;
+    	b = new A();
+    	b.seta(10);
+        b.init();
+        b.setb(15);
+    	a = b %% 6;
+    	a[1].seta(15);
+    	a[0].printA();
+    	a[1].printA();
+        a[5].printB();
+        b.setb(10);
+        a[5].printB();
+	}
+}

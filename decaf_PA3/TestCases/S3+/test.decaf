@@ -1,0 +1,27 @@
+class C {
+ int c;
+ void setC(int cc) {
+  this.c = cc;
+ }
+}
+
+class Data{
+ class C c;
+ void init() {
+  c = new C();
+ }
+ void setC(int cc) { 
+  Print("Entering Data.setC\n");
+  c.setC(cc);
+  Print("Exiting Data.setC\n");
+ }
+}
+
+class Main {
+ static void main() {
+  class Data alpha;
+  alpha = new Data();
+  alpha.init();
+  alpha.setC(2);
+ }
+}

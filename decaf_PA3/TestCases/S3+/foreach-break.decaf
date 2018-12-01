@@ -1,0 +1,20 @@
+// 测试多重循环下的break
+class Main {
+    static void main() {
+
+		int[] a;
+		int c;
+		c = 3;
+		a = c %% 10;	
+		foreach(int i in a){
+			foreach(int j in a) {
+				Print(j);
+				Print("\n");
+			}
+			Print(i);
+			Print("\n");
+			break;
+		}
+		
+	}
+}
