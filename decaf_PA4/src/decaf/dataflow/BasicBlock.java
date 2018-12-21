@@ -44,6 +44,16 @@ public class BasicBlock {
 
     public Set<Temp> liveOut;
 
+    public Set<Pair> reference;
+
+    public Set<Pair> defDU;
+
+    public Set<Pair> liveUseDU;
+
+    public Set<Pair> liveInDU;
+
+    public Set<Pair> liveOutDU;
+
     public Set<Temp> saves;
 
     private List<Asm> asms;
@@ -57,14 +67,19 @@ public class BasicBlock {
     private Map<Pair, Set<Integer>> DUChain;
 
     public BasicBlock() {
-        def = new TreeSet<Temp>(Temp.ID_COMPARATOR);
-        liveUse = new TreeSet<Temp>(Temp.ID_COMPARATOR);
-        liveIn = new TreeSet<Temp>(Temp.ID_COMPARATOR);
-        liveOut = new TreeSet<Temp>(Temp.ID_COMPARATOR);
+        def = new TreeSet<>(Temp.ID_COMPARATOR);
+        liveUse = new TreeSet<>(Temp.ID_COMPARATOR);
+        liveIn = new TreeSet<>(Temp.ID_COMPARATOR);
+        liveOut = new TreeSet<>(Temp.ID_COMPARATOR);
         next = new int[2];
-        asms = new ArrayList<Asm>();
+        asms = new ArrayList<>();
 
-        DUChain = new TreeMap<Pair, Set<Integer>>(Pair.COMPARATOR);
+        reference = new TreeSet<>(Pair.COMPARATOR);
+        defDU = new TreeSet<>(Pair.COMPARATOR);
+        liveUseDU = new TreeSet<>(Pair.COMPARATOR);
+        liveInDU = new TreeSet<>(Pair.COMPARATOR);
+        liveOutDU = new TreeSet<>(Pair.COMPARATOR);
+        DUChain = new TreeMap<>(Pair.COMPARATOR);
     }
 
     public void allocateTacIds() {
@@ -72,6 +87,19 @@ public class BasicBlock {
             tac.id = IDAllocator.apply();
         }
         endId = IDAllocator.apply();
+    }
+
+    interface TacOperatorExtractor {
+        Temp extract(Tac tac);
+    }
+
+    private void insertToLiveUseDU(Tac tac, TacOperatorExtractor extractor) {
+        var temp = extractor.extract(tac);
+        var pair = new Pair(tac.id, temp);
+        reference.add(pair);
+        if (!def.contains(temp)) {
+            liveUseDU.add(pair);
+        }
     }
 
     public void computeDefAndLiveUse() {
@@ -95,14 +123,17 @@ public class BasicBlock {
                         liveUse.add(tac.op1);
                         tac.op1.lastVisitedBB = bbNum;
                     }
+                    insertToLiveUseDU(tac, Tac::op1);
                     if (tac.op2.lastVisitedBB != bbNum) {
                         liveUse.add(tac.op2);
                         tac.op2.lastVisitedBB = bbNum;
                     }
+                    insertToLiveUseDU(tac, Tac::op2);
                     if (tac.op0.lastVisitedBB != bbNum) {
                         def.add(tac.op0);
                         tac.op0.lastVisitedBB = bbNum;
                     }
+                    defDU.add(new Pair(tac.id, tac.op0));
                     break;
                 case NEG:
                 case LNOT:
@@ -114,10 +145,13 @@ public class BasicBlock {
                         liveUse.add(tac.op1);
                         tac.op1.lastVisitedBB = bbNum;
                     }
-                    if (tac.op0 != null && tac.op0.lastVisitedBB != bbNum) {  // in INDIRECT_CALL with return type VOID,
-                        // tac.op0 is null
-                        def.add(tac.op0);
-                        tac.op0.lastVisitedBB = bbNum;
+                    insertToLiveUseDU(tac, Tac::op1);
+                    if (tac.op0 != null) {  // in INDIRECT_CALL with return type VOID,
+                        if (tac.op0.lastVisitedBB != bbNum) {
+                            def.add(tac.op0);
+                            tac.op0.lastVisitedBB = bbNum;
+                        }
+                        defDU.add(new Pair(tac.id, tac.op0));
                     }
                     break;
                 case LOAD_VTBL:
@@ -126,10 +160,13 @@ public class BasicBlock {
                 case LOAD_STR_CONST:
                 case LOAD_IMM4:
 				/* def op0 */
-                    if (tac.op0 != null && tac.op0.lastVisitedBB != bbNum) {  // in DIRECT_CALL with return type VOID,
-                        // tac.op0 is null
-                        def.add(tac.op0);
-                        tac.op0.lastVisitedBB = bbNum;
+                    if (tac.op0 != null) {  // in DIRECT_CALL with return type VOID,
+                        if (tac.op0.lastVisitedBB != bbNum){
+                            // tac.op0 is null
+                            def.add(tac.op0);
+                            tac.op0.lastVisitedBB = bbNum;
+                        }
+                        defDU.add(new Pair(tac.id, tac.op0));
                     }
                     break;
                 case STORE:
@@ -138,10 +175,12 @@ public class BasicBlock {
                         liveUse.add(tac.op0);
                         tac.op0.lastVisitedBB = bbNum;
                     }
+                    insertToLiveUseDU(tac, Tac::op0);
                     if (tac.op1.lastVisitedBB != bbNum) {
                         liveUse.add(tac.op1);
                         tac.op1.lastVisitedBB = bbNum;
                     }
+                    insertToLiveUseDU(tac, Tac::op1);
                     break;
                 case PARM:
 				/* use op0 */
@@ -149,30 +188,39 @@ public class BasicBlock {
                         liveUse.add(tac.op0);
                         tac.op0.lastVisitedBB = bbNum;
                     }
+                    insertToLiveUseDU(tac, Tac::op0);
                     break;
                 default:
 				/* BRANCH MEMO MARK PARM*/
                     break;
             }
         }
-        if (var != null && var.lastVisitedBB != bbNum) {
-            liveUse.add(var);
-            var.lastVisitedBB = bbNum;
+        if (var != null) {
+            if (var.lastVisitedBB != bbNum) {
+                liveUse.add(var);
+                var.lastVisitedBB = bbNum;
+            }
+            var pair = new Pair(endId, var);
+            reference.add(pair);
+            if (!def.contains(var)) {
+                liveUseDU.add(pair);
+            }
         }
         liveIn.addAll(liveUse);
+        liveInDU.addAll(liveUseDU);
     }
 
-    public void analyzeLiveness() {
+    void analyzeLiveness() {
         if (tacList == null)
             return;
         Tac tac = tacList;
-        for (; tac.next != null; tac = tac.next) ;
+        for (;tac.next != null; tac = tac.next);
 
-        tac.liveOut = new HashSet<Temp>(liveOut);
+        tac.liveOut = new HashSet<>(liveOut);
         if (var != null)
             tac.liveOut.add(var);
         for (; tac != tacList; tac = tac.prev) {
-            tac.prev.liveOut = new HashSet<Temp>(tac.liveOut);
+            tac.prev.liveOut = new HashSet<>(tac.liveOut);
             switch (tac.opc) {
                 case ADD:
                 case SUB:
@@ -227,6 +275,49 @@ public class BasicBlock {
         }
     }
 
+    private void insertToDUChain(Pair pair, int pos) {
+        if (DUChain.containsKey(pair)) {
+            DUChain.get(pair).add(pos);
+        } else {
+            var set = new HashSet<Integer>();
+            set.add(pos);
+            DUChain.put(pair, set);
+        }
+    }
+
+    void analyzeDUChain() {
+        // the elements in defDU are sorted in key tmp then pos in ascending order
+        for (var def: defDU) {
+            // find the definition spot itself
+            var iter = defDU.iterator();
+            while (!iter.next().equals(def));
+
+            // try to find the next definition spot of the same variable
+            boolean hasNextDef = true;
+            if (!iter.hasNext()) {
+                hasNextDef = false;
+            } else {
+                var nextDef = iter.next();
+                if (nextDef.tmp.equals(def.tmp)) {
+                    reference.stream()
+                            .filter(p -> p.tmp == def.tmp && p.pos > def.pos && p.pos < nextDef.pos)
+                            .forEach(p -> insertToDUChain(def, p.pos));
+                } else {
+                    hasNextDef = false;
+                }
+            }
+
+            if (!hasNextDef) {
+                reference.stream()
+                        .filter(p -> p.tmp == def.tmp && p.pos > def.pos)
+                        .forEach(p -> insertToDUChain(def, p.pos));
+                liveOutDU.stream()
+                        .filter(p -> p.tmp == def.tmp)
+                        .forEach(p -> insertToDUChain(def, p.pos));
+            }
+        }
+    }
+
     public void printTo(PrintWriter pw) {
         pw.println("BASIC BLOCK " + bbNum + " : ");
         for (Tac t = tacList; t != null; t = t.next) {
@@ -254,7 +345,7 @@ public class BasicBlock {
         }
     }
 
-    public void printLivenessTo(PrintWriter pw) {
+    void printLivenessTo(PrintWriter pw) {
         pw.println("BASIC BLOCK " + bbNum + " : ");
         pw.println("  Def     = " + toString(def));
         pw.println("  liveUse = " + toString(liveUse));
@@ -287,7 +378,7 @@ public class BasicBlock {
         }
     }
 
-    public void printDUChainTo(PrintWriter pw) {
+    void printDUChainTo(PrintWriter pw) {
         pw.println("BASIC BLOCK " + bbNum + " : ");
 
         for (Tac t = tacList; t != null; t = t.next) {
@@ -336,13 +427,10 @@ public class BasicBlock {
                 pw.println();
             } else {
                 pw.print(" [ ");
-                if (pair != null) {
-                    Set<Integer> locations = DUChain.get(pair);
-                    if (locations != null) {
-                        for (Integer loc : locations) {
-                            pw.print(loc + " ");
-                        }
-                    }
+                Set<Integer> locations = DUChain.get(pair);
+                if (locations != null) {
+                    locations.stream().sorted()
+                            .forEach(i -> pw.print(i + " "));
                 }
                 pw.println("]");
             }
@@ -374,7 +462,7 @@ public class BasicBlock {
     public String toString(Set<Temp> set) {
         StringBuilder sb = new StringBuilder("[ ");
         for (Temp t : set) {
-            sb.append(t.name + " ");
+            sb.append(t.name).append(" ");
         }
         sb.append(']');
         return sb.toString();

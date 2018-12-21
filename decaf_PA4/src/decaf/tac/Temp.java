@@ -32,14 +32,7 @@ public class Temp {
 
 	private static int tempCount = 0;
 
-	public static final Comparator<Temp> ID_COMPARATOR = new Comparator<Temp>() {
-
-		@Override
-		public int compare(Temp o1, Temp o2) {
-			return o1.id > o2.id ? 1 : o1.id == o2.id ? 0 : -1;
-		}
-
-	};
+	public static final Comparator<Temp> ID_COMPARATOR = Comparator.comparingInt(o -> o.id);
 
 	public Temp() {
 	}

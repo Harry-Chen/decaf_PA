@@ -1,11 +1,7 @@
 package decaf.dataflow;
 
 import java.io.PrintWriter;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 import decaf.tac.Functy;
 import decaf.tac.Tac;
@@ -27,9 +23,14 @@ public class FlowGraph implements Iterable<BasicBlock> {
         for (BasicBlock bb : bbs) {
             bb.allocateTacIds();
         }
+        for (BasicBlock bb : bbs) {
+            bb.computeDefAndLiveUse();
+        }
         analyzeLiveness();
+        analyzeDUChain();
         for (BasicBlock bb : bbs) {
             bb.analyzeLiveness();
+            bb.analyzeDUChain();
         }
     }
 
@@ -173,11 +174,8 @@ public class FlowGraph implements Iterable<BasicBlock> {
         return bbs.size();
     }
 
-    public void analyzeLiveness() {
-        for (BasicBlock bb : bbs) {
-            bb.computeDefAndLiveUse();
-        }
-        boolean changed = true;
+    private void analyzeLiveness() {
+        boolean changed;
         do {
             changed = false;
             for (BasicBlock bb : bbs) {
@@ -198,7 +196,7 @@ public class FlowGraph implements Iterable<BasicBlock> {
         } while (changed);
     }
 
-    public void simplify() {
+    private void simplify() {
         getBlock(0).inDegree = 1;
         for (BasicBlock bb : bbs) {
             switch (bb.endKind) {
@@ -263,6 +261,45 @@ public class FlowGraph implements Iterable<BasicBlock> {
                 bb.next[1] = newBBNum.get(bb.next[1]);
             }
         }
+    }
+
+    private void analyzeDUChain() {
+        boolean changed;
+        do {
+            changed = false;
+            for (BasicBlock bb : bbs) {
+                var newOutDU = new TreeSet<>(Pair.COMPARATOR);
+                for (int i = 0; i < 2; i++) {
+                    if (bb.next[i] >= 0) { // Not RETURN
+                        newOutDU.addAll(bbs.get(bb.next[i]).liveInDU);
+//                        bb.liveOutDU.addAll(bbs.get(bb.next[i]).liveInDU);
+                    }
+                }
+
+                if (!bb.liveOutDU.equals(newOutDU)) {
+                    changed = true;
+                    bb.liveOutDU.clear();
+                    bb.liveOutDU.addAll(newOutDU);
+                    bb.liveInDU.clear();
+                    bb.liveInDU.addAll(bb.liveOutDU);
+                    var toDelete = new ArrayList<Pair>();
+                    for (var pair : bb.liveOutDU) {
+                        if (bb.def.contains(pair.tmp)) {
+                            toDelete.add(pair);
+                        }
+                    }
+                    bb.liveInDU.removeAll(toDelete);
+                    bb.liveInDU.addAll(bb.liveUseDU);
+                }
+//                if (bb.liveInDU.addAll(bb.liveOutDU))
+//                    changed = true;
+//                for (int i = 0; i < 2; i++) {
+//                    if (bb.next[i] >= 0) { // Not RETURN
+//                        bb.liveOutDU.addAll(bbs.get(bb.next[i]).liveInDU);
+//                    }
+//                }
+            }
+        } while (changed);
     }
 
     public void printTo(PrintWriter pw) {

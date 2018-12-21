@@ -40,6 +40,18 @@ public class Tac {
 	public Set<Temp> liveOut;
 	
 	public Set<Temp> saves;
+
+	public static Temp op0(Tac tac) {
+		return tac.op0;
+	}
+
+	public static Temp op1(Tac tac) {
+		return tac.op1;
+	}
+
+	public static Temp op2(Tac tac) {
+		return tac.op2;
+	}
 	
 	private static int allocateId() {
 		++cnt;
