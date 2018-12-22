@@ -275,8 +275,8 @@ public class FlowGraph implements Iterable<BasicBlock> {
                     }
                 }
 
+                // remove all re-defined variables from liveOutDU
                 var defTemps = bb.defDU.stream().map(p -> p.tmp).collect(Collectors.toSet());
-
                 bb.liveOutDU.removeIf(p -> defTemps.contains(p.tmp));
 
                 if (bb.liveInDU.addAll(bb.liveOutDU))
