@@ -97,7 +97,7 @@ public class BasicBlock {
         var temp = extractor.extract(tac);
         var pair = new Pair(tac.id, temp);
         reference.add(pair);
-        if (!def.contains(temp)) {
+        if (defDU.stream().noneMatch(d -> d.tmp == temp)) {
             liveUseDU.add(pair);
         }
     }
@@ -202,7 +202,7 @@ public class BasicBlock {
             }
             var pair = new Pair(endId, var);
             reference.add(pair);
-            if (!def.contains(var)) {
+            if (defDU.stream().noneMatch(d -> d.tmp == var)) {
                 liveUseDU.add(pair);
             }
         }
@@ -279,7 +279,7 @@ public class BasicBlock {
         if (DUChain.containsKey(pair)) {
             DUChain.get(pair).add(pos);
         } else {
-            var set = new HashSet<Integer>();
+            var set = new TreeSet<Integer>();
             set.add(pos);
             DUChain.put(pair, set);
         }
@@ -300,7 +300,7 @@ public class BasicBlock {
                 var nextDef = iter.next();
                 if (nextDef.tmp.equals(def.tmp)) {
                     reference.stream()
-                            .filter(p -> p.tmp == def.tmp && p.pos > def.pos && p.pos < nextDef.pos)
+                            .filter(p -> p.tmp == def.tmp && p.pos > def.pos && p.pos <= nextDef.pos)
                             .forEach(p -> insertToDUChain(def, p.pos));
                 } else {
                     hasNextDef = false;
@@ -429,8 +429,7 @@ public class BasicBlock {
                 pw.print(" [ ");
                 Set<Integer> locations = DUChain.get(pair);
                 if (locations != null) {
-                    locations.stream().sorted()
-                            .forEach(i -> pw.print(i + " "));
+                    locations.forEach(i -> pw.print(i + " "));
                 }
                 pw.println("]");
             }

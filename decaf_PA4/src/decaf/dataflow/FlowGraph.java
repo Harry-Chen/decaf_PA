@@ -2,6 +2,7 @@ package decaf.dataflow;
 
 import java.io.PrintWriter;
 import java.util.*;
+import java.util.stream.Collectors;
 
 import decaf.tac.Functy;
 import decaf.tac.Tac;
@@ -268,36 +269,23 @@ public class FlowGraph implements Iterable<BasicBlock> {
         do {
             changed = false;
             for (BasicBlock bb : bbs) {
-                var newOutDU = new TreeSet<>(Pair.COMPARATOR);
                 for (int i = 0; i < 2; i++) {
                     if (bb.next[i] >= 0) { // Not RETURN
-                        newOutDU.addAll(bbs.get(bb.next[i]).liveInDU);
-//                        bb.liveOutDU.addAll(bbs.get(bb.next[i]).liveInDU);
+                        bb.liveOutDU.addAll(bbs.get(bb.next[i]).liveInDU);
                     }
                 }
 
-                if (!bb.liveOutDU.equals(newOutDU)) {
+                var defTemps = bb.defDU.stream().map(p -> p.tmp).collect(Collectors.toSet());
+
+                bb.liveOutDU.removeIf(p -> defTemps.contains(p.tmp));
+
+                if (bb.liveInDU.addAll(bb.liveOutDU))
                     changed = true;
-                    bb.liveOutDU.clear();
-                    bb.liveOutDU.addAll(newOutDU);
-                    bb.liveInDU.clear();
-                    bb.liveInDU.addAll(bb.liveOutDU);
-                    var toDelete = new ArrayList<Pair>();
-                    for (var pair : bb.liveOutDU) {
-                        if (bb.def.contains(pair.tmp)) {
-                            toDelete.add(pair);
-                        }
+                for (int i = 0; i < 2; i++) {
+                    if (bb.next[i] >= 0) { // Not RETURN
+                        bb.liveOutDU.addAll(bbs.get(bb.next[i]).liveInDU);
                     }
-                    bb.liveInDU.removeAll(toDelete);
-                    bb.liveInDU.addAll(bb.liveUseDU);
                 }
-//                if (bb.liveInDU.addAll(bb.liveOutDU))
-//                    changed = true;
-//                for (int i = 0; i < 2; i++) {
-//                    if (bb.next[i] >= 0) { // Not RETURN
-//                        bb.liveOutDU.addAll(bbs.get(bb.next[i]).liveInDU);
-//                    }
-//                }
             }
         } while (changed);
     }
