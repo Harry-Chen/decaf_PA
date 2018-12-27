@@ -22,14 +22,12 @@ class InferenceGraph {
 	public BasicBlock bb;
 	public Register[] regs;
 	public Register fp;
-	public Set<Temp> liveUseLoad = new HashSet<>();
 
 
 	private void clear() {
 		nodes.clear();
 		neighbours.clear();
 		nodeDeg.clear();
-		liveUseLoad.clear();
 	}
 
 
@@ -37,13 +35,11 @@ class InferenceGraph {
 		this.regs = regs;
 		this.bb = bb;
 		this.fp = fp;
-		while (true) {
+		do {
 			clear();
 			makeGraph();
-			if (color())
-				break;
 			// For simplicity, omit handling for spilling.
-		}
+		} while (!color());
 	}
 
 
@@ -122,6 +118,9 @@ class InferenceGraph {
 
 
 	void makeNodes() {
+
+		bb.liveUse.forEach(this::addNode);
+
 		for (Tac tac = bb.tacList; tac != null; tac = tac.next) {
 			switch (tac.opc) {
 				case ADD: case SUB: case MUL: case DIV: case MOD:
@@ -164,28 +163,61 @@ class InferenceGraph {
 
 	// With your definition of inference graphs, build the edges.
 	void makeEdges() {
+
+		// ensure that all variables in liveUse have different colors
+		for (var a : bb.liveUse) {
+			for (var b : bb.liveUse) {
+				if (!a.equals(b) && !neighbours.get(a).contains(b)) {
+					addEdge(a, b);
+				}
+			}
+		}
+
 		for (Tac tac = bb.tacList; tac != null; tac = tac.next) {
 			switch (tac.opc) {
-				case ADD: case SUB: case MUL: case DIV: case MOD:
-				case LAND: case LOR: case GTR: case GEQ: case EQU:
-				case NEQ: case LEQ: case LES:
-
-				case NEG: case LNOT: case ASSIGN:
-
-				case LOAD_VTBL: case LOAD_IMM4: case LOAD_STR_CONST:
-
-				case INDIRECT_CALL:
-
-				case DIRECT_CALL:
-
-				case PARM:
-
+				case ADD:
+				case SUB:
+				case MUL:
+				case DIV:
+				case MOD:
+				case LAND:
+				case LOR:
+				case GTR:
+				case GEQ:
+				case EQU:
+				case NEQ:
+				case LEQ:
+				case LES:
+					// def op0, fallthrough
+				case NEG:
+				case LNOT:
+				case ASSIGN:
+					// def op0, fallthrough
+				case LOAD_VTBL:
+				case LOAD_IMM4:
+				case LOAD_STR_CONST:
 				case LOAD:
-
-				case STORE:
+				case DIRECT_CALL:
+				case INDIRECT_CALL:
+					// def op0
+					if (tac.op0 != null && tac.liveOut != null) {
+						for (var out : tac.liveOut) {
+							if (!out.equals(tac.op0) && nodes.contains(out)){
+								addEdge(tac.op0, out);
+							}
+						}
+					}
 					break;
 
-				case BRANCH: case BEQZ: case BNEZ: case RETURN:
+				case PARM:
+				case STORE:
+					// use op0
+					break;
+
+				case BRANCH:
+				case BEQZ:
+				case BNEZ:
+				case RETURN:
 					throw new IllegalArgumentException();
 			}
 		}
