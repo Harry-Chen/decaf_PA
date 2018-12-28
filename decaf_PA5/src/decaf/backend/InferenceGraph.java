@@ -119,6 +119,7 @@ class InferenceGraph {
 
 	void makeNodes() {
 
+		// liveUse should also be included in Nodes
 		bb.liveUse.forEach(this::addNode);
 
 		for (Tac tac = bb.tacList; tac != null; tac = tac.next) {
@@ -164,7 +165,9 @@ class InferenceGraph {
 	// With your definition of inference graphs, build the edges.
 	void makeEdges() {
 
-		// ensure that all variables in liveUse have different colors
+		// Ensure that all variables in liveUse have different colors.
+		// In fact this is not necessary unless they are loaded at the same time,
+		// just as we are required to do, unfortunately.
 		for (var a : bb.liveUse) {
 			for (var b : bb.liveUse) {
 				if (!a.equals(b) && !neighbours.get(a).contains(b)) {
@@ -188,20 +191,19 @@ class InferenceGraph {
 				case NEQ:
 				case LEQ:
 				case LES:
-					// def op0, fallthrough
 				case NEG:
 				case LNOT:
 				case ASSIGN:
-					// def op0, fallthrough
 				case LOAD_VTBL:
 				case LOAD_IMM4:
 				case LOAD_STR_CONST:
 				case LOAD:
 				case DIRECT_CALL:
-				case INDIRECT_CALL:
+				case INDIRECT_CALL: // only in this case can op0 be null
 					// def op0
 					if (tac.op0 != null && tac.liveOut != null) {
 						for (var out : tac.liveOut) {
+							// only consider liveOut inside B
 							if (!out.equals(tac.op0) && nodes.contains(out)){
 								addEdge(tac.op0, out);
 							}
